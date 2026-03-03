@@ -33,6 +33,11 @@ export interface Problem {
   isInterested?: boolean;
   collaboratorsCount: number;
   createdAt: string;
+  engineeringImpactScore?: number;
+  technicalDepthScore?: number;
+  industryImpactScore?: number;
+  cognitiveComplexityScore?: number;
+  signalQualityScore?: number;
 }
 
 export interface User {

@@ -9,6 +9,7 @@ Returns normalized problem objects.
 import os
 import time
 import re
+import html
 from datetime import datetime
 from typing import List, Dict
 import praw
@@ -21,14 +22,6 @@ SUBREDDITS = [
     'learnprogramming', 'coding', 'programming', 'techsupport',
     'sysadmin', 'cloudcomputing', 'datascience', 'arduino', 'raspberry_pi'
 ]
-
-# Import centralized logic
-from scoring_engine import (
-    generate_humanized_explanation,
-    classify_solution_type,
-    is_tech_solvable,
-    suggest_tech
-)
 
 load_dotenv()
 
@@ -49,29 +42,26 @@ def scrape_reddit(limit: int = 10) -> List[Dict]:
     
     Returns:
         List of normalized problem dictionaries
-    
-    This function reuses the existing is_tech_solvable() filter and
-    ML-based tech suggestion from pyproblem_shelf.py
     """
-    print(f"\n🔍 REDDIT SCRAPER DEBUG LOG")
+    print(f"\nREDDIT SCRAPER DEBUG LOG")
     print("=" * 60)
     
     # EXPLICIT CREDENTIAL VALIDATION
-    print(f"📋 Checking Reddit credentials...")
+    print(f"Checking Reddit credentials...")
     print(f"  REDDIT_CLIENT_ID: {'✓ SET' if REDDIT_CLIENT_ID else '✗ MISSING'} ({'...' + REDDIT_CLIENT_ID[-8:] if REDDIT_CLIENT_ID else 'None'})")
     print(f"  REDDIT_CLIENT_SECRET: {'✓ SET' if REDDIT_CLIENT_SECRET else '✗ MISSING'} ({'...' + REDDIT_CLIENT_SECRET[-8:] if REDDIT_CLIENT_SECRET else 'None'})")
     print(f"  REDDIT_USER_AGENT: {'✓ SET' if REDDIT_USER_AGENT else '✗ MISSING'} ({REDDIT_USER_AGENT if REDDIT_USER_AGENT else 'None'})")
     
     if not all([REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USER_AGENT]):
-        error_msg = "❌ REDDIT CREDENTIALS MISSING! Cannot proceed with Reddit scraping."
+        error_msg = "REDDIT CREDENTIALS MISSING! Cannot proceed with Reddit scraping."
         print(f"\n{error_msg}")
         print("  Check your .env file for REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USER_AGENT")
         raise ValueError(error_msg)
     
-    print(f"✅ All Reddit credentials present\n")
+    print(f"All Reddit credentials present\n")
     
     # INITIALIZE REDDIT CLIENT
-    print(f"🔗 Initializing Reddit client...")
+    print(f"Initializing Reddit client...")
     try:
         reddit = praw.Reddit(
             client_id=REDDIT_CLIENT_ID,
@@ -80,17 +70,17 @@ def scrape_reddit(limit: int = 10) -> List[Dict]:
         )
         
         # TEST AUTHENTICATION
-        print(f"🔐 Testing Reddit authentication...")
+        print(f"Testing Reddit authentication...")
         try:
             # Try to access user info to verify auth
             user = reddit.user.me()
-            print(f"✅ Authenticated as: {user.name if user else 'read-only mode'}")
+            print(f"Authenticated as: {user.name if user else 'read-only mode'}")
         except Exception as auth_test_error:
             # Script apps run in read-only mode, this is OK
-            print(f"✅ Running in read-only mode (script app) - this is normal")
+            print(f"Running in read-only mode (script app) - this is normal")
             
     except Exception as e:
-        error_msg = f"❌ REDDIT CLIENT INITIALIZATION FAILED: {str(e)}"
+        error_msg = f"REDDIT CLIENT INITIALIZATION FAILED: {str(e)}"
         print(f"\n{error_msg}")
         raise RuntimeError(error_msg)
     
@@ -98,7 +88,7 @@ def scrape_reddit(limit: int = 10) -> List[Dict]:
     # Fetch 3x the limit to account for filtering
     posts_per_subreddit = max(5, (limit * 3) // len(SUBREDDITS)) + 2
     
-    print(f"\n📊 Scraping Parameters:")
+    print(f"\nScraping Parameters:")
     print(f"  Target problems: {limit}")
     print(f"  Subreddits: {len(SUBREDDITS)} ({', '.join(SUBREDDITS)})")
     print(f"  Posts per subreddit: ~{posts_per_subreddit}")
@@ -110,10 +100,10 @@ def scrape_reddit(limit: int = 10) -> List[Dict]:
     
     for sub in SUBREDDITS:
         if len(problems) >= limit:
-            print(f"  ⏭️  Skipping remaining subreddits (quota reached)")
+            print(f"  Skipping remaining subreddits (quota reached)")
             break
         
-        print(f"  📡 Scraping r/{sub}...", end=" ", flush=True)
+        print(f"  Scraping r/{sub}...", end=" ", flush=True)
         fetched = 0
         filtered = 0
         errors = []
@@ -130,47 +120,49 @@ def scrape_reddit(limit: int = 10) -> List[Dict]:
                 fetched += 1
                 
                 try:
-                    # Use centralized tech-solvable filter
-                    if is_tech_solvable(post.title, post.selftext):
-                        from text_utils import clean_text
-                        cleaned_title = clean_text(post.title)
-                        cleaned_body = clean_text(post.selftext)
+                    from text_utils import clean_text
+                    cleaned_title = clean_text(post.title)
+                    cleaned_body = clean_text(post.selftext)
+                    
+                    # Fallback simple tech suggestion logic or leave empty
+                    suggest_tech_str = ""
+                    
+                    # Author info
+                    author_name = str(post.author) if post.author else 'Anonymous'
+                    try:
+                        author_id = post.author.id if post.author else 'N/A'
+                    except Exception:
+                        author_id = 'N/A'
+                    
+                    # Tags
+                    tags = [post.link_flair_text] if post.link_flair_text else []
+                    
+                    # Metrics
+                    score = post.score
+                    comment_count = post.num_comments
+                    engagement_score = float(score) + (float(comment_count) * 1.5)
+
+                    # Minimal decoding for titles
+                    raw_title = html.unescape(cleaned_title)
+
+                    problem = {
+                        'raw_title': raw_title,
+                        'raw_description': cleaned_body,
+                        'raw_tags': tags,
+                        'source': f'reddit/{sub}',
+                        'source_id': post.id,
+                        'date': datetime.fromtimestamp(post.created).strftime('%Y-%m-%d'),
+                        'author_name': author_name,
+                        'author_id': author_id,
+                        'reference_link': f"https://reddit.com{post.permalink}",
                         
-                        # Use centralized tech suggestion
-                        suggest_tech_str = suggest_tech(cleaned_title + ' ' + cleaned_body)
-                        
-                        # Author info
-                        author_name = str(post.author) if post.author else 'Anonymous'
-                        try:
-                            author_id = post.author.id if post.author else 'N/A'
-                        except Exception:
-                            author_id = 'N/A'
-                        
-                        # Generate new fields
-                        humanized_explanation = generate_humanized_explanation(cleaned_title, cleaned_body)
-                        solution_possibility = classify_solution_type(f"{cleaned_title} {cleaned_body}", tags)
-                        
-                        # Tags
-                        tags = [post.link_flair_text] if post.link_flair_text else []
-                        
-                        problem = {
-                            'title': cleaned_title,
-                            'description': truncate_text(cleaned_body, 1000),
-                            'source': f'reddit/{sub}',
-                            'source_id': post.id,  # Reddit post ID
-                            'date': datetime.fromtimestamp(post.created).strftime('%Y-%m-%d'),
-                            'suggested_tech': suggest_tech_str,
-                            'humanized_explanation': humanized_explanation,
-                            'solution_possibility': solution_possibility,
-                            'author_name': author_name,
-                            'author_id': author_id,
-                            'reference_link': f"https://reddit.com{post.permalink}",
-                            'tags': tags
-                        }
-                        
-                        problems.append(problem)
-                    else:
-                        filtered += 1
+                        # Metrics passthrough
+                        'upvotes': score,
+                        'comment_count': comment_count,
+                        'engagement_score': engagement_score
+                    }
+                    
+                    problems.append(problem)
                     
                     time.sleep(0.3)  # Reduced from 0.5 for faster scraping
                     
@@ -181,11 +173,11 @@ def scrape_reddit(limit: int = 10) -> List[Dict]:
             
             print(f"fetched {fetched}, kept {fetched - filtered}, filtered {filtered}")
             if errors:
-                print(f"    ⚠️  {len(errors)} post-level errors (first: {errors[0][:50]}...)")
+                print(f"    {len(errors)} post-level errors (first: {errors[0][:50]}...)")
                 
         except praw.exceptions.Forbidden as e:
             total_errors += 1
-            print(f"❌ FORBIDDEN (403): r/{sub} - {str(e)}")
+            print(f"ERROR: r/{sub} - {type(e).__name__}: {str(e)}")
             print(f"    Possible causes: subreddit is private, banned, or credentials lack access")
             
         except praw.exceptions.NotFound as e:
@@ -211,7 +203,7 @@ def scrape_reddit(limit: int = 10) -> List[Dict]:
         total_fetched += fetched
         total_filtered += filtered
     
-    print(f"\n📊 REDDIT SCRAPING SUMMARY:")
+    print(f"\nREDDIT SCRAPING SUMMARY:")
     print(f"  Total posts fetched: {total_fetched}")
     print(f"  Total posts filtered: {total_filtered}")
     print(f"  Total problems kept: {len(problems)}")
@@ -220,8 +212,6 @@ def scrape_reddit(limit: int = 10) -> List[Dict]:
     if len(problems) == 0 and total_fetched > 0:
         warning_msg = f"⚠️  WARNING: Fetched {total_fetched} posts but ALL were filtered out!"
         print(f"\n{warning_msg}")
-        print(f"     This means is_tech_solvable() rejected all posts.")
-        print(f"     Consider relaxing filter criteria in is_tech_solvable()")
     elif len(problems) == 0 and total_fetched == 0:
         warning_msg = "⚠️  WARNING: No posts fetched from ANY subreddit!"
         print(f"\n{warning_msg}")

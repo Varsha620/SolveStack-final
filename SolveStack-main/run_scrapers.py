@@ -1,9 +1,22 @@
 import sys
 import os
+import subprocess
+import argparse
+from datetime import datetime
+
+# Force UTF-8 encoding for Windows console
+if sys.stdout.encoding != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        # Fallback for older python versions
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # Add current directory to path
 sys.path.append(os.getcwd())
 
+from dotenv import load_dotenv
 from database import SessionLocal, engine
 from models import Base, Problem
 from scrapers import scrape_github, scrape_stackoverflow, scrape_hackernews
@@ -23,17 +36,15 @@ def store_problems(problems, db):
                 continue
                 
             new_prob = Problem(
-                title=p['title'],
-                description=p['description'],
+                title=p.get('title', p.get('raw_title', '')),
+                description=p.get('description', p.get('raw_description', '')),
                 source=p['source'],
                 date=p['date'],
-                suggested_tech=p['suggested_tech'],
+                suggested_tech=p.get('suggested_tech', ', '.join(p.get('tags', p.get('raw_tags', [])))),
                 author_name=p['author_name'],
                 author_id=p['author_id'],
                 reference_link=p['reference_link'],
-                tags=p['tags'],
-                humanized_explanation=p.get('humanized_explanation'),
-                solution_possibility=p.get('solution_possibility')
+                tags=p.get('tags', p.get('raw_tags', []))
             )
             db.add(new_prob)
             db.commit()
@@ -47,7 +58,7 @@ def run():
     db = SessionLocal()
     total_added = 0
     
-    print("🚀 Starting Batch Scraping...")
+    print("Starting Batch Scraping...")
     
     # Target ~100 problems total. ~25-30 per source.
     limit_per_source = 30
@@ -88,7 +99,7 @@ def run():
     except Exception as e:
         print(f"   -> Failed: {e}")
 
-    print(f"\n✅ Finished! Total new problems added: {total_added}")
+    print(f"\nFinished! Total new problems added: {total_added}")
     db.close()
 
 if __name__ == "__main__":

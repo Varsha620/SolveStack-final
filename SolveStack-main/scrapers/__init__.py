@@ -12,5 +12,6 @@ Each scraper returns a normalized list of problem dictionaries.
 from .github_scraper import scrape_github
 from .stackoverflow_scraper import scrape_stackoverflow
 from .hackernews_scraper import scrape_hackernews
+from .reddit_scraper import scrape_reddit
 
-__all__ = ['scrape_github', 'scrape_stackoverflow', 'scrape_hackernews']
+__all__ = ['scrape_github', 'scrape_stackoverflow', 'scrape_hackernews', 'scrape_reddit']

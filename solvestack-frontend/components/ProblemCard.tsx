@@ -2,7 +2,7 @@
 import React from 'react';
 import { Problem, Difficulty } from '../types';
 import { PLATFORM_ICONS, DIFFICULTY_COLORS } from '../constants';
-import { Heart, Users, ExternalLink, ArrowUpRight } from 'lucide-react';
+import { Heart, Users, ExternalLink, ArrowUpRight, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
@@ -64,11 +64,29 @@ const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
     }
   };
 
+  // Dynamically calculate difficulty if EIS is available
+  const displayDifficulty = React.useMemo(() => {
+    if (problem.engineeringImpactScore) {
+      if (problem.engineeringImpactScore > 75) return Difficulty.ADVANCED;
+      if (problem.engineeringImpactScore > 40) return Difficulty.INTERMEDIATE;
+      return Difficulty.BEGINNER;
+    }
+    return problem.difficulty;
+  }, [problem.engineeringImpactScore, problem.difficulty]);
+
   return (
     <div className="group relative bg-[#090909] border border-white/5 rounded-xl p-5 hover:border-white/20 transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)]">
       <div className="flex justify-between items-start mb-4">
-        <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${DIFFICULTY_COLORS[problem.difficulty]}`}>
-          {problem.difficulty}
+        <div className="flex flex-col gap-1">
+          <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border w-fit ${DIFFICULTY_COLORS[displayDifficulty]}`}>
+            {displayDifficulty}
+          </div>
+          {problem.engineeringImpactScore !== undefined && (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-white/5 rounded border border-white/10 w-fit">
+              <Sparkles className="w-3 h-3 text-cyan-400" />
+              <span className="text-[10px] font-bold text-white/80">EIS: {problem.engineeringImpactScore.toFixed(0)}</span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
           {PLATFORM_ICONS[problem.source]}

@@ -10,16 +10,13 @@ import os
 import time
 import re
 from datetime import datetime
+import requests
+import html
 from typing import List, Dict
 from dotenv import load_dotenv
 from text_utils import clean_text as robust_clean_text, truncate_text
 
-# Import centralized logic
-from scoring_engine import (
-    generate_humanized_explanation,
-    classify_solution_type,
-    TOPIC_COMPLEXITY
-)
+
 
 load_dotenv()
 
@@ -27,8 +24,8 @@ load_dotenv()
 STACKEXCHANGE_KEY = os.getenv('STACKEXCHANGE_KEY')
 API_BASE_URL = "https://api.stackexchange.com/2.3"
 
-# Popular tech tags from scoring engine
-TECH_TAGS = list(TOPIC_COMPLEXITY.keys())
+# Popular tech tags (placeholder or empty)
+TECH_TAGS = []
 
 
 def clean_html(text: str) -> str:
@@ -53,15 +50,15 @@ def scrape_stackoverflow(limit: int = 10) -> List[Dict]:
     - OR-style single-tag queries for better results
     - Question body is not empty
     """
-    print(f"\n🔍 STACK OVERFLOW SCRAPER DEBUG LOG")
+    print(f"\nSTACK OVERFLOW SCRAPER DEBUG LOG")
     print("=" * 60)
     
     # API KEY VALIDATION
     if STACKEXCHANGE_KEY:
-        print(f"📋 Stack Exchange API Key: ✓ SET (...{STACKEXCHANGE_KEY[-8:]})")
+        print(f"Stack Exchange API Key: SET (...{STACKEXCHANGE_KEY[-8:]})")
         print(f"   Quota: 10,000 requests/day")
     else:
-        print(f"📋 Stack Exchange API Key: ✗ NOT SET")
+        print(f"Stack Exchange API Key: NOT SET")
         print(f"   Quota: 300 requests/day (unauthenticated)")
     
     print()
@@ -76,7 +73,7 @@ def scrape_stackoverflow(limit: int = 10) -> List[Dict]:
     priority_tags = ['python', 'javascript', 'reactjs', 'nodejs', 'typescript', 
                      'docker', 'kubernetes', 'machine-learning']
     
-    print(f"📊 Scraping Parameters:")
+    print(f"Scraping Parameters:")
     print(f"  Target problems: {limit}")
     print(f"  Strategy: OR-style single-tag queries")
     print(f"  Priority tags: {', '.join(priority_tags)}")
@@ -89,10 +86,10 @@ def scrape_stackoverflow(limit: int = 10) -> List[Dict]:
         
         for tag in priority_tags:
             if len(problems) >= limit:
-                print(f"  ⏭️  Quota reached ({len(problems)}/{limit}), stopping")
+                print(f"  Quota reached ({len(problems)}/{limit}), stopping")
                 break
             
-            print(f"  📡 Fetching '{tag}' questions...", end=" ", flush=True)
+            print(f"  Fetching '{tag}' questions...", end=" ", flush=True)
             
             endpoint = f"{API_BASE_URL}/questions"
             
@@ -117,7 +114,7 @@ def scrape_stackoverflow(limit: int = 10) -> List[Dict]:
                 response = requests.get(endpoint, params=params, timeout=15)
                 
                 if response.status_code != 200:
-                    print(f"❌ HTTP {response.status_code}")
+                    print(f"HTTP {response.status_code}")
                     if response.status_code == 400:
                         error_data = response.json()
                         print(f"    Error: {error_data.get('error_message', 'Bad request')}")
@@ -129,7 +126,7 @@ def scrape_stackoverflow(limit: int = 10) -> List[Dict]:
                 if 'quota_remaining' in data:
                     quota_remaining = data['quota_remaining']
                     if quota_remaining < 50:
-                        print(f"⚠️  Low API quota: {quota_remaining} remaining")
+                        print(f"Low API quota: {quota_remaining} remaining")
                 
                 if 'items' not in data:
                     print(f"❌ No 'items' in response")
@@ -176,24 +173,32 @@ def scrape_stackoverflow(limit: int = 10) -> List[Dict]:
                     creation_date = question.get('creation_date', 0)
                     date_str = datetime.fromtimestamp(creation_date).strftime('%Y-%m-%d') if creation_date else datetime.now().strftime('%Y-%m-%d')
                     
-                    # Generate additional fields
-                    suggested_tech = ', '.join(question_tags) if question_tags else tag
-                    humanized_explanation = generate_humanized_explanation(title, body)
-                    solution_possibility = classify_solution_type(f"{title} {body}", question_tags)
+                    humanized_explanation = ""
+                    solution_possibility = ""
+                    
+                    # Metrics
+                    score = question.get('score', 0)
+                    comment_count = question.get('comment_count', 0)
+                    engagement_score = float(score) + (float(comment_count) * 1.5)
+                    
+                    # Minimal decoding for titles
+                    raw_title = html.unescape(title)
                     
                     problem = {
-                        'title': robust_clean_text(title),
-                        'description': truncate_text(body, 1000),  # Use robust truncate
+                        'raw_title': raw_title,
+                        'raw_description': body,
+                        'raw_tags': question_tags,
                         'source': 'stackoverflow',
-                        'source_id': question_id,
+                        'source_id': str(question_id),
                         'reference_link': link,
-                        'tags': question_tags,
-                        'suggested_tech': suggested_tech,
-                        'humanized_explanation': humanized_explanation,
-                        'solution_possibility': solution_possibility,
                         'date': date_str,
                         'author_name': author_name,
-                        'author_id': author_id
+                        'author_id': author_id,
+                        
+                        # Metrics passthrough
+                        'upvotes': score,
+                        'comment_count': comment_count,
+                        'engagement_score': engagement_score
                     }
                     
                     problems.append(problem)

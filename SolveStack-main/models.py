@@ -1,7 +1,12 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, ForeignKey, Table, Boolean, UniqueConstraint, Index
+from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, ForeignKey, Table, Boolean, UniqueConstraint, Index, Float, SmallInteger, Date
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
+try:
+    from pgvector.sqlalchemy import Vector
+except ImportError:
+    Vector = None
 
 Base = declarative_base()
 
@@ -31,16 +36,6 @@ class User(Base):
         back_populates='interested_users'
     )
     
-    # Phase 2C: User Profiling & Matching
-    skills = Column(JSON, default=list)  # ["Python", "React", "PostgreSQL"]
-    experience_level = Column(String(20), default='Intermediate')  # Beginner/Intermediate/Advanced
-    interests = Column(JSON, default=list)  # ["Web Development", "Machine Learning"]
-    activity_score = Column(Integer, default=50)  # 0-100, based on user actions
-    
-    # User Preferences
-    preferred_difficulty = Column(String(20), default='Intermediate')
-    preferred_effort = Column(String(20), default='1-3 days')
-    
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
 
@@ -53,18 +48,62 @@ class Problem(Base):
     title = Column(Text, nullable=False)
     description = Column(Text)
     source = Column(String(100))  # 'reddit/subreddit', 'github/repo', etc.
-    date = Column(String(20))  # Date from source (YYYY-MM-DD)
+    source_id = Column(String(100))  # ID from source (e.g., issue #, post ID)
+    date = Column(Date)  # Date from source
     suggested_tech = Column(String(500))  # Comma-separated tech tags
     author_name = Column(String(100))
     author_id = Column(String(100))
     reference_link = Column(String(500), unique=True, nullable=False, index=True)
-    tags = Column(JSON)  # Array of tags from source
-    scraped_at = Column(DateTime, default=datetime.utcnow)
+    tags = Column(JSON)  # Array of tags from source (legacy/deprecated)
     
-    # Phase 4: Multi-Source Ingestion Fields
-    source_id = Column(String(255), nullable=True, index=True)  # External platform ID (e.g., Reddit post ID, SO question ID)
-    humanized_explanation = Column(Text, nullable=True)  # 2-3 simple English sentences explaining the problem
-    solution_possibility = Column(String(50), nullable=True)  # "software" | "hardware" | "hybrid"
+    # Raw Fields (Preserving original data)
+    raw_title = Column(Text)
+    raw_description = Column(Text)
+    raw_tags = Column(JSON)
+    
+    # Processed/Cleaned Fields
+    cleaned_title = Column(Text)
+    cleaned_description = Column(Text)
+    normalized_title = Column(Text)
+    title_hash = Column(String(64), index=True) # SHA-256 hash for deduplication
+    
+    # Scoring and Metadata Fields
+    difficulty_score = Column(Float, default=0.0)
+    difficulty_level = Column(SmallInteger, default=0) # 0: Unknown, 1: Easy, 2: Medium, 3: Hard
+    upvotes = Column(Integer, default=0)
+    downvotes = Column(Integer, default=0)
+    comment_count = Column(Integer, default=0)
+    engagement_score = Column(Float, default=0.0)
+    
+    # Metrics and Features
+    text_length = Column(Integer, default=0)
+    word_count = Column(Integer, default=0)
+    has_code_block = Column(Boolean, default=False)
+    num_code_blocks = Column(Integer, default=0)
+    
+    # Audit/Version Info
+    scraped_at = Column(DateTime, default=datetime.utcnow)
+    cleaned_at = Column(DateTime, default=datetime.utcnow)
+    clean_version = Column(String(20), default="1.0.0")
+    
+    # Engineering Impact Scoring (EIS) - Phase 1
+    technical_depth_score = Column(Float, default=0.0)
+    industry_impact_score = Column(Float, default=0.0)
+    cognitive_complexity_score = Column(Float, default=0.0)
+    signal_quality_score = Column(Float, default=0.0)
+    engineering_impact_score = Column(Float, default=0.0, index=True) # Normalized 0-100
+    scoring_version = Column(String(20), default="1.0.0")
+    
+    # Semantic Search Support (pgvector)
+    # Default to 384 dimensions (e.g., for all-MiniLM-L6-v2)
+    if Vector is not None:
+        embedding = Column(Vector(384), nullable=True)
+    else:
+        # Fallback for SQLite/Dev where pgvector isn't installed
+        embedding = Column(JSON, nullable=True) # Store as array/list of floats
+        
+    # Full-Text Search Support (PostgreSQL)
+    search_vector = Column(TSVECTOR)
     
     # Relationships
     interested_users = relationship(
@@ -73,14 +112,6 @@ class Problem(Base):
         back_populates='interested_problems'
     )
     collaboration_groups = relationship('CollaborationGroup', back_populates='problem')
-    
-    # Phase 2C: Quality Scoring & Metrics
-    quality_score = Column(Integer, default=0)  # 0-100, computed from multiple factors
-    difficulty = Column(String(20), default='Intermediate')  # Beginner/Intermediate/Advanced
-    estimated_effort = Column(String(20), default='1-3 days')  # Time estimate
-    upvotes = Column(Integer, default=0)  # Community engagement (simulated)
-    views = Column(Integer, default=0)  # Problem views (simulated)
-    score_updated_at = Column(DateTime, nullable=True)  # Last scoring timestamp
     
     # Composite index for de-duplication
     __table_args__ = (
@@ -180,3 +211,19 @@ class CollaborationGroup(Base):
     
     def __repr__(self):
         return f"<CollaborationGroup(id={self.id}, problem_id={self.problem_id}, members={len(self.members)}, active={self.is_active})>"
+
+
+class SearchLog(Base):
+    """
+    Tracks search queries for intent-aware tuning.
+    """
+    __tablename__ = 'search_logs'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    query = Column(Text, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    results_returned = Column(Integer, default=0)
+    latency_ms = Column(Float, default=0.0)
+    
+    def __repr__(self):
+        return f"<SearchLog(id={self.id}, query='{self.query[:30]}...', results={self.results_returned})>"

@@ -15,18 +15,18 @@ from schemas import (
     CollaborationRequestCreate, CollaborationActionRequest,
     CollaborationRequestResponse, CollaborationStatusResponse, CollaborationGroupInfo,
     ScrapeRequest, ScrapeResponse, ScrapeAllResponse,
-    QualityScoreResponse, RecommendationsResponse, CollaborationSuggestionsResponse
+    HybridSearchResponse, SemanticSearchResponse, IntentAwareSearchResponse,
+    ShelfResponse, ImpactExplanation, ShelfAnalytics
 )
-from scoring_engine import (
-    compute_compatibility_score,
-    calculate_problem_difficulty
-)
+from search_service import get_search_service
+from impact_explanation_service import get_explanation_service
 from auth import (
     get_password_hash,
     verify_password,
     create_access_token,
     get_current_user
 )
+from cleaning_layer import DataCleaner
 
 
 load_dotenv()
@@ -104,7 +104,7 @@ def login_user(
     """
     Login and receive JWT access token
     
-    - **username**: Email address (OAuth2 uses 'username' field)
+    - **username**: Email address (OAuth2 uses 'username' field for email)
     - **password**: User password
     """
     # Find user by email (OAuth2PasswordRequestForm uses 'username' field for email)
@@ -139,8 +139,6 @@ def get_current_user_info(current_user: User = Depends(get_current_user), db: Se
         group_members.c.user_id == current_user.id
     ).scalar() or 0
     
-    pulse = current_user.activity_score if current_user.activity_score is not None else 50
-    
     print(f">>> [PROFILE DEBUG] Request for User ID: {current_user.id} ({current_user.username})")
     print(f">>> [PROFILE DEBUG] Database found - Interests: {interested_count}, Squads: {squads_count}")
     
@@ -150,92 +148,257 @@ def get_current_user_info(current_user: User = Depends(get_current_user), db: Se
         "email": current_user.email,
         "created_at": current_user.created_at,
         "is_premium": current_user.is_premium,
-        "skills": current_user.skills or [],
-        "interests": current_user.interests or [],
-        "experience_level": current_user.experience_level or "Intermediate",
-        "activity_score": pulse,
         "interested_count": interested_count,
         "squads_count": squads_count
     }
 
 
-# ============ Search & AI Services ============
-
-class SearchService:
-    """Local semantic search service to avoid excessive API calls"""
-    @staticmethod
-    def get_semantic_matches(query: str, problems: List[Problem]):
-        if not problems or not query:
-            return []
-            
-        try:
-            # Try semantic search with sklearn if available
-            from sklearn.feature_extraction.text import TfidfVectorizer
-            from sklearn.metrics.pairwise import cosine_similarity
-            import numpy as np
-            
-            texts = []
-            for p in problems:
-                text = f"{p.title} {p.description or ''} {p.suggested_tech or ''} {p.humanized_explanation or ''}"
-                texts.append(text.lower())
-                
-            vectorizer = TfidfVectorizer(stop_words='english')
-            tfidf_matrix = vectorizer.fit_transform(texts)
-            query_vec = vectorizer.transform([query.lower()])
-            
-            similarities = cosine_similarity(query_vec, tfidf_matrix).flatten()
-            indices = np.where(similarities > 0.15)[0]
-            results = sorted(indices, key=lambda i: similarities[i], reverse=True)
-            return [problems[i].ps_id for i in results]
-            
-        except ImportError:
-            # Fallback: Simple keyword overlap ranking (if sklearn missing)
-            print(">>> [SEARCH] Sklearn missing, falling back to keyword ranking")
-            query_tokens = set(query.lower().split())
-            matches = []
-            for p in problems:
-                p_text = f"{p.title} {p.description or ''} {p.suggested_tech or ''}".lower()
-                p_tokens = set(p_text.split())
-                score = len(query_tokens.intersection(p_tokens))
-                if score > 0:
-                    matches.append((p.ps_id, score))
-            
-            # Sort by score
-            matches.sort(key=lambda x: x[1], reverse=True)
-            return [m[0] for m in matches]
-        except Exception as e:
-            print(f"Search error: {e}")
-            return []
-
-@app.post("/search/semantic", tags=["Problems"])
-def semantic_search(
-    request: Dict[str, str],
+@app.get("/search/hybrid", response_model=List[HybridSearchResponse], tags=["Search"])
+def hybrid_search(
+    query: str,
+    limit: int = 10,
     db: Session = Depends(get_db)
 ):
     """
-    Perform AI-driven semantic search (internal model).
-    Uses local vector space model to avoid external API calls.
+    Perform a hybrid search (Semantic + Keyword + Tags)
+    
+    - **query**: Search string
+    - **limit**: Maximum results to return
     """
-    query = request.get("query", "")
-    if not query:
-        return []
+    search_service = get_search_service()
+    
+    # We'll just pass the query as query_text. 
+    # If the user wants to extract tags, we'd need another layer, 
+    # but the request specifically says: query=...
+    results = search_service.search(db, query_text=query, limit=limit)
+    
+    return [
+        {
+            "ps_id": p.ps_id,
+            "title": p.title,
+            "description": p.description,
+            "semantic_score": p.search_scores["semantic"],
+            "keyword_score": p.search_scores["keyword"],
+            "tag_score": p.search_scores["tag"],
+            "final_score": p.search_scores["final"]
+        } for p in results
+    ]
+
+@app.get("/search", response_model=IntentAwareSearchResponse, tags=["Search"])
+def search(
+    query: str,
+    limit: int = 10,
+    db: Session = Depends(get_db)
+):
+    """
+    Perform a Google-style intent-aware search.
+    - **query**: Natural language or keyword query
+    - **limit**: Maximum results to return
+    """
+    if not query or not query.strip():
+        raise HTTPException(status_code=400, detail="Query string cannot be empty")
         
-    all_problems = db.query(Problem).all()
-    matched_ids = SearchService.get_semantic_matches(query, all_problems)
-    # Convert to strings for frontend compatibility
-    return [str(mid) for mid in matched_ids]
+    search_service = get_search_service()
+    
+    try:
+        results, metadata = search_service.intent_aware_search(
+            db, 
+            query=query, 
+            limit=limit
+        )
+        
+        return {
+            "query": query,
+            "results": [
+                {
+                    "ps_id": p.ps_id,
+                    "title": p.title,
+                    "description": p.description,
+                    "tags": p.tags or [],
+                    "scores": p.search_scores
+                } for p in results
+            ],
+            "metadata": metadata
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+@app.get("/search/semantic", response_model=SemanticSearchResponse, tags=["Search"])
+def semantic_search(
+    query: str,
+    limit: int = 10,
+    min_score: float = 0.0,
+    db: Session = Depends(get_db)
+):
+    """
+    Perform a pure research-grade semantic search (normalized).
+    
+    - **query**: Search string (max 500 chars)
+    - **limit**: Maximum results to return
+    - **min_score**: Minimum similarity threshold [0-1]
+    """
+    # STEP 5: Safety & Validation
+    if not query or not query.strip():
+        raise HTTPException(status_code=400, detail="Query string cannot be empty")
+        
+    if len(query) > 500:
+        query = query[:500]
+        
+    search_service = get_search_service()
+    
+    try:
+        results, metadata = search_service.search_semantic(
+            db, 
+            query=query, 
+            limit=limit, 
+            min_score=min_score
+        )
+        
+        if "error" in metadata:
+            raise HTTPException(status_code=500, detail=metadata["error"])
+            
+        return {
+            "query": query,
+            "results": [
+                {
+                    "ps_id": p.ps_id,
+                    "title": p.title,
+                    "description": p.description,
+                    "tags": p.tags or [],
+                    "semantic_score": p.search_scores["semantic"]
+                } for p in results
+            ],
+            "metadata": metadata
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Semantic search failed: {str(e)}")
+
+
+@app.get("/shelf", response_model=ShelfResponse, tags=["Shelf Intelligence"])
+def get_shelf(
+    mode: str = "explore",
+    sort_by: str = "impact",
+    limit: int = 20,
+    db: Session = Depends(get_db)
+):
+    """
+    Access the intelligent Problem Shelf with curated modes.
+    - **mode**: explore, production, architecture, high-cognitive
+    - **sort_by**: impact, depth, recency
+    """
+    from sqlalchemy import cast, JSON, func
+    query = db.query(Problem)
+    
+    # Modes
+    if mode == "production":
+        query = query.filter(Problem.industry_impact_score > 0.6, Problem.signal_quality_score > 0.6)
+    elif mode == "architecture":
+        query = query.filter(Problem.technical_depth_score > 0.7)
+        # Multi-domain: problems with at least 2 tags
+        query = query.filter(func.json_array_length(cast(Problem.tags, JSON)) >= 2)
+    elif mode == "high-cognitive":
+        query = query.filter(Problem.cognitive_complexity_score > 0.7)
+    
+    # Sorting
+    if sort_by == "impact":
+        query = query.order_by(Problem.engineering_impact_score.desc())
+    elif sort_by == "depth":
+        query = query.order_by(Problem.technical_depth_score.desc())
+    else:
+        # Default to recency if not specified or fallback
+        query = query.order_by(Problem.scraped_at.desc())
+        
+    results = query.limit(limit).all()
+    
+    return {
+        "mode": mode,
+        "total_found": len(results),
+        "results": [
+            {
+                "id": p.ps_id,
+                "title": p.title,
+                "engineering_impact_score": p.engineering_impact_score,
+                "technical_depth_score": p.technical_depth_score,
+                "industry_impact_score": p.industry_impact_score,
+                "cognitive_complexity_score": p.cognitive_complexity_score,
+                "signal_quality_score": p.signal_quality_score,
+                "tags": p.tags or []
+            } for p in results
+        ]
+    }
+
+
+@app.get("/shelf/{problem_id}/explain", response_model=ImpactExplanation, tags=["Shelf Intelligence"])
+def explain_impact(
+    problem_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get a natural language explanation for why a problem ranks high.
+    """
+    problem = db.query(Problem).filter(Problem.ps_id == problem_id).first()
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found")
+        
+    explanation_service = get_explanation_service()
+    return explanation_service.explain_score(problem)
+
+
+@app.get("/analytics/shelf", response_model=ShelfAnalytics, tags=["Shelf Intelligence"])
+def get_shelf_analytics(db: Session = Depends(get_db)):
+    """
+    Global analytics for the Intelligent Shelf.
+    """
+    from sqlalchemy import func
+    total = db.query(Problem).count()
+    if total == 0:
+        return {
+            "total_analyzed": 0, "low_signal_percentage": 0, "avg_impact_score": 0,
+            "top_impact_problems": [], "eis_distribution": []
+        }
+    
+    avg_impact = db.query(func.avg(Problem.engineering_impact_score)).scalar()
+    low_signal = db.query(Problem).filter(Problem.signal_quality_score < 0.4).count()
+    
+    top_5 = db.query(Problem).order_by(Problem.engineering_impact_score.desc()).limit(5).all()
+    
+    # Distribution
+    distribution = []
+    buckets = [(0, 20), (20, 40), (40, 60), (60, 80), (80, 100)]
+    for start, end in buckets:
+        count = db.query(Problem).filter(
+            Problem.engineering_impact_score >= start,
+            Problem.engineering_impact_score < (end if end < 100 else 101)
+        ).count()
+        distribution.append({"bucket": f"{start}-{end}", "count": count})
+        
+    return {
+        "total_analyzed": total,
+        "low_signal_percentage": round((low_signal / total) * 100, 2),
+        "avg_impact_score": round(avg_impact or 0, 2),
+        "top_impact_problems": [
+            {"id": p.ps_id, "title": p.title, "score": p.engineering_impact_score}
+            for p in top_5
+        ],
+        "eis_distribution": distribution
+    }
 
 
 # ============ Problem Endpoints ============
 
 def _map_problem_to_response(problem: Problem, current_user: Optional[User] = None) -> dict:
     """Helper to map a Problem model to a unified dictionary response"""
-    difficulty = calculate_problem_difficulty(problem)
     return {
         "ps_id": problem.ps_id,
         "title": problem.title,
         "description": problem.description,
         "source": problem.source,
+        "source_id": problem.source_id,
         "date": problem.date,
         "suggested_tech": problem.suggested_tech,
         "author_name": problem.author_name,
@@ -243,11 +406,30 @@ def _map_problem_to_response(problem: Problem, current_user: Optional[User] = No
         "reference_link": problem.reference_link,
         "tags": problem.tags or [],
         "scraped_at": problem.scraped_at,
+        "difficulty_score": problem.difficulty_score or 0.0,
+        "difficulty_level": problem.difficulty_level or 0,
+        "upvotes": problem.upvotes or 0,
+        "downvotes": problem.downvotes or 0,
+        "comment_count": problem.comment_count or 0,
+        "engagement_score": problem.engagement_score or 0.0,
+        "text_length": problem.text_length or 0,
         "interested_count": len(problem.interested_users),
-        "difficulty": difficulty,
-        "humanized_explanation": problem.humanized_explanation,
-        "source_id": problem.source_id,
-        "is_interested": current_user in problem.interested_users if current_user else False
+        "is_interested": current_user in problem.interested_users if current_user else False,
+        # New cleaning/metadata fields
+        "raw_title": problem.raw_title,
+        "raw_tags": problem.raw_tags,
+        "normalized_title": problem.normalized_title,
+        "title_hash": problem.title_hash,
+        "word_count": problem.word_count,
+        "has_code_block": problem.has_code_block,
+        "num_code_blocks": problem.num_code_blocks,
+        "clean_version": problem.clean_version,
+        # Engineering Impact Scoring (EIS)
+        "technical_depth_score": problem.technical_depth_score or 0.0,
+        "industry_impact_score": problem.industry_impact_score or 0.0,
+        "cognitive_complexity_score": problem.cognitive_complexity_score or 0.0,
+        "signal_quality_score": problem.signal_quality_score or 0.0,
+        "engineering_impact_score": problem.engineering_impact_score or 0.0
     }
 
 @app.get("/problems", response_model=List[ProblemResponse], tags=["Problems"])
@@ -392,28 +574,34 @@ def trigger_scrape(
             reddit_problems = scrape_reddit(limit=request.limit)
             # Use local helper or store_problems_in_db logic
             # For simplicity, similar to scrape_all_sources
-            from scrapers import scrape_github # already imported above
             
             # Since trigger_scrape is simpler and older, we'll keep it simple but correct references
             def quick_store(problems):
                 count = 0
-                for p_data in problems:
+                cleaner = DataCleaner()
+                for p_raw in problems:
                     try:
-                        new_p = Problem(
-                            title=p_data['title'],
-                            description=p_data['description'],
-                            source=p_data['source'],
-                            date=p_data['date'],
-                            suggested_tech=p_data['suggested_tech'],
-                            author_name=p_data['author_name'],
-                            author_id=p_data['author_id'],
-                            reference_link=p_data['reference_link'],
-                            tags=p_data['tags']
-                        )
+                        # 1. Clean and enrich
+                        p_data = cleaner.clean_problem(p_raw)
+                        
+                        # 2. Check for duplicate link
+                        existing = db.query(Problem).filter(
+                            Problem.reference_link == p_data['reference_link']
+                        ).first()
+                        if existing: continue
+                        
+                        # 3. Check for duplicate hash
+                        existing_hash = db.query(Problem).filter(
+                            Problem.title_hash == p_data['title_hash']
+                        ).first()
+                        if existing_hash: continue
+
+                        new_p = Problem(**p_data)
                         db.add(new_p)
                         db.commit()
                         count += 1
-                    except:
+                    except Exception as e:
+                        print(f"Quick store error: {e}")
                         db.rollback()
                         continue
                 return count
@@ -453,91 +641,76 @@ def scrape_all_sources(db: Session = Depends(get_db)):
       1. reference_link (unique constraint)
       2. source + source_id combination
       3. Title similarity within same source (>85% match)
-    
-    Returns:
-        Counts of problems scraped from each source and duplicates skipped
     """
     from scrapers import scrape_github, scrape_stackoverflow, scrape_hackernews
     from sqlalchemy.exc import IntegrityError
     from difflib import SequenceMatcher
     
-    def is_similar_title(title1: str, title2: str, threshold: float = 0.85) -> bool:
-        """Check if two titles are similar using fuzzy matching"""
-        ratio = SequenceMatcher(None, title1.lower(), title2.lower()).ratio()
-        return ratio >= threshold
+    # In-memory session-level dedupe
+    seen_hashes = set()
+    cleaner = DataCleaner()
     
-    def is_duplicate(problem_data: dict, db: Session) -> bool:
-        """
-        Check if problem is a duplicate using multiple strategies.
-        Returns True if duplicate, False if unique.
-        """
-        # Strategy 1: Check reference_link
+    total_processed = 0
+    total_cleaned = 0
+    total_deduped = 0
+    records_with_code = 0
+    
+    source_results = {
+        "github": 0,
+        "stackoverflow": 0,
+        "hackernews": 0,
+        "reddit": 0
+    }
+
+    def is_duplicate(cleaned_data: dict, db: Session) -> bool:
+        # Layer 1: Reference link
         existing_link = db.query(Problem).filter(
-            Problem.reference_link == problem_data['reference_link']
+            Problem.reference_link == cleaned_data['reference_link']
         ).first()
+        if existing_link: return True
         
-        if existing_link:
-            return True
+        # Layer 2: Title Hash
+        existing_hash = db.query(Problem).filter(
+            Problem.title_hash == cleaned_data['title_hash']
+        ).first()
+        if existing_hash: return True
         
-        # Strategy 2: Check source + source_id combination
-        if problem_data.get('source_id'):
-            existing_source_id = db.query(Problem).filter(
-                Problem.source == problem_data['source'],
-                Problem.source_id == problem_data['source_id']
-            ).first()
-            
-            if existing_source_id:
-                return True
-        
-        # Strategy 3: Check title similarity within same source
-        source_prefix = problem_data['source'].split('/')[0]
-        similar_problems = db.query(Problem).filter(
-            Problem.source.like(f"{source_prefix}%")
-        ).order_by(Problem.scraped_at.desc()).limit(500).all()
-        
-        for existing_problem in similar_problems:
-            if is_similar_title(problem_data['title'], existing_problem.title):
-                return True
+        # Layer 3: Session check
+        if cleaned_data['title_hash'] in seen_hashes: return True
         
         return False
-    
-    def insert_problems(problems_list: list, db: Session) -> tuple:
-        """Insert problems into database, return (inserted_count, duplicates_skipped)"""
+
+    def insert_problems(problems_raw, source_key):
         inserted = 0
-        duplicates = 0
+        deduped = 0
+        nonlocal total_cleaned, records_with_code
         
-        for problem_data in problems_list:
-            if is_duplicate(problem_data, db):
-                duplicates += 1
-                continue
-            
+        for p_raw in problems_raw:
             try:
-                new_problem = Problem(
-                    title=problem_data['title'],
-                    description=problem_data['description'],
-                    source=problem_data['source'],
-                    date=problem_data['date'],
-                    suggested_tech=problem_data['suggested_tech'],
-                    author_name=problem_data['author_name'],
-                    author_id=problem_data['author_id'],
-                    reference_link=problem_data['reference_link'],
-                    tags=problem_data['tags'],
-                    source_id=problem_data.get('source_id'),
-                    humanized_explanation=problem_data.get('humanized_explanation'),
-                    solution_possibility=problem_data.get('solution_possibility')
-                )
+                # 1. Clean
+                cleaned_p = cleaner.clean_problem(p_raw)
+                total_cleaned += 1
+                if cleaned_p['has_code_block']:
+                    records_with_code += 1
                 
+                # 2. Deduplicate
+                if is_duplicate(cleaned_p, db):
+                    deduped += 1
+                    continue
+                
+                # 3. Insert
+                new_problem = Problem(**cleaned_p)
                 db.add(new_problem)
                 db.commit()
+                
+                seen_hashes.add(cleaned_p['title_hash'])
                 inserted += 1
-            except IntegrityError:
-                db.rollback()
-                duplicates += 1
             except Exception as e:
-                print(f"  ❌ Error inserting problem: {e}")
+                print(f"Insertion error ({source_key}): {e}")
                 db.rollback()
+                continue
         
-        return inserted, duplicates
+        return inserted, deduped
     
     # QUOTA ENFORCEMENT CONSTANTS
     TARGET_TOTAL = 30
@@ -569,8 +742,9 @@ def scrape_all_sources(db: Session = Depends(get_db)):
         try:
             github_problems = scrape_github(limit=INITIAL_PER_SOURCE)
             github_fetched = len(github_problems)
-            github_count, github_dups = insert_problems(github_problems, db)
+            github_count, github_dups = insert_problems(github_problems, "github")
             total_duplicates += github_dups
+            source_results["github"] = github_count
             print(f"  ✅ GitHub: {github_count} inserted, {github_dups} duplicates")
         except Exception as e:
             print(f"  ❌ GitHub scraping failed: {str(e)[:100]}")
@@ -581,8 +755,9 @@ def scrape_all_sources(db: Session = Depends(get_db)):
         try:
             stackoverflow_problems = scrape_stackoverflow(limit=INITIAL_PER_SOURCE)
             stackoverflow_fetched = len(stackoverflow_problems)
-            stackoverflow_count, so_dups = insert_problems(stackoverflow_problems, db)
+            stackoverflow_count, so_dups = insert_problems(stackoverflow_problems, "stackoverflow")
             total_duplicates += so_dups
+            source_results["stackoverflow"] = stackoverflow_count
             print(f"  ✅ Stack Overflow: {stackoverflow_count} inserted, {so_dups} duplicates")
         except Exception as e:
             print(f"  ❌ Stack Overflow scraping failed: {str(e)[:100]}")
@@ -593,8 +768,9 @@ def scrape_all_sources(db: Session = Depends(get_db)):
         try:
             hackernews_problems = scrape_hackernews(limit=INITIAL_PER_SOURCE)
             hackernews_fetched = len(hackernews_problems)
-            hackernews_count, hn_dups = insert_problems(hackernews_problems, db)
+            hackernews_count, hn_dups = insert_problems(hackernews_problems, "hackernews")
             total_duplicates += hn_dups
+            source_results["hackernews"] = hackernews_count
             print(f"  ✅ Hacker News: {hackernews_count} inserted, {hn_dups} duplicates")
         except Exception as e:
             print(f"  ❌ Hacker News scraping failed: {str(e)[:100]}")
@@ -628,8 +804,9 @@ def scrape_all_sources(db: Session = Depends(get_db)):
                     try:
                         extra_github = scrape_github(limit=additional_per_source)
                         if extra_github:
-                            extra_count, extra_dups = insert_problems(extra_github, db)
+                            extra_count, extra_dups = insert_problems(extra_github, "github")
                             github_count += extra_count
+                            source_results["github"] = github_count
                             github_fetched += len(extra_github)
                             total_duplicates += extra_dups
                             current_total += extra_count
@@ -642,8 +819,9 @@ def scrape_all_sources(db: Session = Depends(get_db)):
                     try:
                         extra_so = scrape_stackoverflow(limit=additional_per_source)
                         if extra_so:
-                            extra_count, extra_dups = insert_problems(extra_so, db)
+                            extra_count, extra_dups = insert_problems(extra_so, "stackoverflow")
                             stackoverflow_count += extra_count
+                            source_results["stackoverflow"] = stackoverflow_count
                             stackoverflow_fetched += len(extra_so)
                             total_duplicates += extra_dups
                             current_total += extra_count
@@ -656,8 +834,9 @@ def scrape_all_sources(db: Session = Depends(get_db)):
                     try:
                         extra_hn = scrape_hackernews(limit=additional_per_source)
                         if extra_hn:
-                            extra_count, extra_dups = insert_problems(extra_hn, db)
+                            extra_count, extra_dups = insert_problems(extra_hn, "hackernews")
                             hackernews_count += extra_count
+                            source_results["hackernews"] = hackernews_count
                             hackernews_fetched += len(extra_hn)
                             total_duplicates += extra_dups
                             current_total += extra_count
@@ -688,6 +867,8 @@ def scrape_all_sources(db: Session = Depends(get_db)):
             "message": f"Successfully scraped {current_total} new problems ({total_duplicates} duplicates skipped)",
             "total_scraped": current_total,
             "total_fetched": github_fetched + stackoverflow_fetched + hackernews_fetched,
+            "total_cleaned": total_cleaned,
+            "records_with_code": records_with_code,
             "github_count": github_count,
             "github_fetched": github_fetched,
             "stackoverflow_count": stackoverflow_count,
@@ -1157,211 +1338,7 @@ def get_collaboration_status(
     return response
 
 
-# ============ Phase 2C: Intelligent Features ============
 
-@app.post("/problems/{problem_id}/score", response_model=QualityScoreResponse, tags=["Phase 2C - Quality Scoring"])
-def score_problem_quality(
-    problem_id: int,
-    db: Session = Depends(get_db)
-):
-    """
-    Compute quality score for a problem using heuristic algorithms.
-    
-    Scores based on:
-    - Description quality (clarity, completeness)
-    - Technical depth (complexity, tech stack)
-    - Community engagement (interest, upvotes, views)
-    - Reproducibility (steps, environment info)
-    
-    Also classifies difficulty and estimates effort.
-    
-    **Algorithm is deterministic and fully explainable** - no ML model training.
-    
-    Future Enhancement:
-    - Could batch-score all problems on schedule
-    - Auto-update when problem is modified
-    - Display scores in frontend UI
-    """
-    from datetime import datetime
-    
-    # Find problem
-    problem = db.query(Problem).filter(Problem.ps_id == problem_id).first()
-    
-    if not problem:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Problem not found"
-        )
-    
-    # Compute scores using heuristic algorithm
-    result = compute_problem_quality_score(problem)
-    
-    # Update problem in database
-    problem.quality_score = result["quality_score"]
-    problem.difficulty = result["difficulty"]
-    problem.estimated_effort = result["estimated_effort"]
-    problem.score_updated_at = datetime.utcnow()
-    
-    db.commit()
-    
-    return {
-        "problem_id": problem.ps_id,
-        "quality_score": result["quality_score"],
-        "difficulty": result["difficulty"],
-        "estimated_effort": result["estimated_effort"],
-        "breakdown": result["breakdown"],
-        "message": f"Quality score computed: {result['quality_score']}/100 ({result['difficulty']} difficulty)"
-    }
-
-
-@app.get("/recommendations", response_model=RecommendationsResponse, tags=["Phase 2C - Recommendations"])
-def get_personalized_recommendations(
-    limit: int = 10,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Get personalized problem recommendations for the current user.
-    
-    Matches problems based on:
-    - User's skills vs problem technologies (0-40 points)
-    - Difficulty level vs user experience (0-20 points)
-    - User interests vs problem domain (0-20 points)
-    - Novelty/exploration factor (0-20 points)
-    
-    Returns ranked list with match scores and human-readable reasons.
-    
-    **READ-ONLY**: Does not auto-select or mark interest.
-    
-    Future Enhancement:
-    - Add filtering by difficulty/effort
-    - Include "learning path" suggestions
-    - Premium users get more recommendations
-    """
-    # Get all problems
-    all_problems = db.query(Problem).all()
-    
-    if not all_problems:
-        return {
-            "user_id": current_user.id,
-            "username": current_user.username,
-            "total_recommendations": 0,
-            "recommendations": []
-        }
-    
-    # Compute match score for each problem
-    recommendations = []
-    
-    for problem in all_problems:
-        match_result = compute_match_score(current_user, problem)
-        
-        # Only include if match score > 20 (some relevance)
-        if match_result["match_score"] > 20:
-            recommendations.append({
-                "problem_id": problem.ps_id,
-                "title": problem.title,
-                "suggested_tech": problem.suggested_tech or "",
-                "difficulty": problem.difficulty or "Intermediate",
-                "estimated_effort": problem.estimated_effort or "1-3 days",
-                "quality_score": problem.quality_score or 0,
-                "match_score": match_result["match_score"],
-                "reasons": match_result["reasons"]
-            })
-    
-    # Sort by match score descending
-    recommendations.sort(key=lambda x: x["match_score"], reverse=True)
-    
-    # Limit results
-    top_recommendations = recommendations[:limit]
-    
-    return {
-        "user_id": current_user.id,
-        "username": current_user.username,
-        "total_recommendations": len(top_recommendations),
-        "recommendations": top_recommendations
-    }
-
-
-@app.get("/collaborate/suggestions/{problem_id}", response_model=CollaborationSuggestionsResponse, tags=["Phase 2C - Smart Suggestions"])
-def get_collaboration_suggestions(
-    problem_id: int,
-    limit: int = 5,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Get smart collaboration suggestions for a problem.
-    
-    Suggests users who would be good collaborators based on:
-    - Skill complementarity (together cover all techs) - 0-35 points
-    - Experience balance (mentorship or peer matching) - 0-20 points
-    - Activity compatibility (both active) - 0-25 points
-    - Past collaboration success - 0-20 points
-    
-    **READ-ONLY**: Does not auto-send requests or create groups.
-    
-    **Prerequisite**: Current user must have marked interest in the problem.
-    
-    Future Enhancement:
-    - Add AI-based personality matching
-    - Include timezone compatibility
-    - Show mutual connections
-    - Premium feature: Unlock more suggestions
-    """
-    # Find problem
-    problem = db.query(Problem).filter(Problem.ps_id == problem_id).first()
-    
-    if not problem:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Problem not found"
-        )
-    
-    # Check if current user has marked interest
-    if current_user not in problem.interested_users:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You must mark interest in this problem first to get collaboration suggestions"
-        )
-    
-    # Get all other interested users (exclude current user)
-    interested_users = [u for u in problem.interested_users if u.id != current_user.id]
-    
-    if not interested_users:
-        return {
-            "problem_id": problem.ps_id,
-            "problem_title": problem.title,
-            "total_suggestions": 0,
-            "suggestions": []
-        }
-    
-    # Compute compatibility score for each candidate
-    suggestions = []
-    
-    for candidate in interested_users:
-        compat_result = compute_compatibility_score(current_user, candidate, problem)
-        
-        suggestions.append({
-            "user_id": candidate.id,
-            "username": candidate.username,
-            "skills": candidate.skills or [],
-            "experience_level": candidate.experience_level or "Intermediate",
-            "compatibility_score": compat_result["compatibility_score"],
-            "reasons": compat_result["reasons"]
-        })
-    
-    # Sort by compatibility score descending
-    suggestions.sort(key=lambda x: x["compatibility_score"], reverse=True)
-    
-    # Limit results
-    top_suggestions = suggestions[:limit]
-    
-    return {
-        "problem_id": problem.ps_id,
-        "problem_title": problem.title,
-        "total_suggestions": len(top_suggestions),
-        "suggestions": top_suggestions
-    }
 
 
 # ============ Debug Endpoints ============
@@ -1424,4 +1401,4 @@ def health_check():
 # Run with: uvicorn main:app --reload
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

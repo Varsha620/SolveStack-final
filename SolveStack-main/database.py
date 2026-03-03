@@ -25,7 +25,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./solvestack.db")
 
 if DATABASE_URL.startswith("postgresql"):
     # Production: PostgreSQL
-    print(f"📊 Using PostgreSQL: {DATABASE_URL.split('@')[-1]}")
+    print(f"[DB] Using PostgreSQL: {DATABASE_URL.split('@')[-1]}")
     engine = create_engine(
         DATABASE_URL,
         pool_pre_ping=True,
@@ -35,7 +35,7 @@ if DATABASE_URL.startswith("postgresql"):
     )
 else:
     # Development: SQLite
-    print(f"📊 Using SQLite: {DATABASE_URL}")
+    print(f"[DB] Using SQLite: {DATABASE_URL}")
     engine = create_engine(
         DATABASE_URL,
         connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},

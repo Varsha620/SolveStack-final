@@ -77,20 +77,27 @@ const Dashboard: React.FC = () => {
 
     setIsAiFiltering(true);
     try {
-      const matchedIds = await apiService.semanticSearch(searchQuery);
-      setAiFilteredIds(matchedIds);
+      const results = await apiService.semanticSearch(searchQuery);
+      setProblems(results);
+      setAiFilteredIds([]); // Marker for being in search mode
+      setHasMore(false);
     } catch (error) {
       console.error("AI Filtering failed", error);
-      // Fallback to normal keyword search if AI fails
       setAiFilteredIds(null);
     } finally {
       setIsAiFiltering(false);
     }
   };
 
-  const clearAiFilter = () => {
+  const clearAiFilter = async () => {
     setAiFilteredIds(null);
     setSearchQuery('');
+    setLoading(true);
+    const data = await apiService.getProblems(0, LIMIT);
+    setProblems(data);
+    setOffset(LIMIT);
+    setHasMore(data.length === LIMIT);
+    setLoading(false);
   };
 
   const handleRunScrapers = async () => {
@@ -111,6 +118,7 @@ const Dashboard: React.FC = () => {
   const filteredProblems = problems.filter(p => {
     // If AI filter is active, only show those IDs
     if (aiFilteredIds !== null) {
+      if (aiFilteredIds.length === 0) return true;
       return aiFilteredIds.includes(p.id);
     }
 

@@ -11,17 +11,14 @@ import re
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 import requests
+import html
+import base64
 import time
 import os
 from dotenv import load_dotenv
 
 # Import centralized logic
-from scoring_engine import (
-    generate_humanized_explanation,
-    classify_solution_type,
-    TOPIC_COMPLEXITY,
-    DEFAULT_COMPLEXITY
-)
+
 from text_utils import clean_text as robust_clean_text, truncate_text
 
 load_dotenv()
@@ -124,7 +121,7 @@ def is_cache_valid() -> bool:
 def get_cached_repos() -> Optional[List[Dict]]:
     """Get repositories from cache if valid, else None"""
     if is_cache_valid() and _REPO_CACHE['repos']:
-        print(f"  💾 Using cached repositories ({len(_REPO_CACHE['repos'])} repos, age: {int((datetime.now() - _REPO_CACHE['timestamp']).total_seconds() / 60)}min)")
+        print(f"  Using cached repositories ({len(_REPO_CACHE['repos'])} repos, age: {int((datetime.now() - _REPO_CACHE['timestamp']).total_seconds() / 60)}min)")
         return _REPO_CACHE['repos']
     return None
 
@@ -133,7 +130,7 @@ def cache_repos(repos: List[Dict]) -> None:
     """Cache discovered repositories for 60 minutes"""
     _REPO_CACHE['repos'] = repos
     _REPO_CACHE['timestamp'] = datetime.now()
-    print(f"  💾 Cached {len(repos)} repositories (TTL: 60min)")
+    print(f"  Cached {len(repos)} repositories (TTL: 60min)")
 
 
 def apply_language_diversity(repos: List[Dict], target_count: int) -> List[Dict]:
@@ -180,7 +177,7 @@ def handle_rate_limit(response: requests.Response) -> None:
         if remaining == 0:
             reset_time = int(response.headers.get('X-RateLimit-Reset', 0))
             sleep_time = max(reset_time - time.time(), 0) + 5
-            print(f"  ⚠️  Rate limit hit. Sleeping for {int(sleep_time)}s...")
+            print(f"  Rate limit hit. Sleeping for {int(sleep_time)}s...")
             time.sleep(sleep_time)
 
 
@@ -246,7 +243,7 @@ def discover_starred_repos(limit: int = 5) -> List[Dict]:
         time.sleep(0.3)
         
     except Exception as e:
-        print(f"  ⚠️  Could not fetch starred repos: {str(e)[:50]}")
+        print(f"  Could not fetch starred repos: {str(e)[:50]}")
     
     return discovered_repos
 
@@ -311,7 +308,7 @@ def discover_trending_repos(limit: int = 5) -> List[Dict]:
         time.sleep(0.3)
         
     except Exception as e:
-        print(f"  ⚠️  Could not fetch trending repos: {str(e)[:50]}")
+        print(f"  Could not fetch trending repos: {str(e)[:50]}")
     
     return discovered_repos
 
@@ -332,7 +329,7 @@ def discover_repositories(limit: int = 15) -> List[Dict]:
     
     Returns list of repo objects with owner, name, language, topics
     """
-    print(f"\n🔍 Discovering GitHub repositories...")
+    print(f"\nDiscovering GitHub repositories...")
     
     # CHECK CACHE FIRST
     cached_repos = get_cached_repos()
@@ -348,7 +345,7 @@ def discover_repositories(limit: int = 15) -> List[Dict]:
     starred_limit = max(2, limit // 5)
     starred_repos = discover_starred_repos(limit=starred_limit)
     if starred_repos:
-        print(f"  📌 Found {len(starred_repos)} starred repos")
+        print(f"  Found {len(starred_repos)} starred repos")
         for repo in starred_repos:
             if repo['full_name'] not in repos_seen:
                 repos_seen.add(repo['full_name'])
@@ -358,7 +355,7 @@ def discover_repositories(limit: int = 15) -> List[Dict]:
     trending_limit = max(2, limit // 5)
     trending_repos = discover_trending_repos(limit=trending_limit)
     if trending_repos:
-        print(f"  🔥 Found {len(trending_repos)} trending repos")
+        print(f"  Found {len(trending_repos)} trending repos")
         for repo in trending_repos:
             if len(discovered_repos) >= limit:
                 break
@@ -389,7 +386,7 @@ def discover_repositories(limit: int = 15) -> List[Dict]:
                 handle_rate_limit(response)
                 
                 if response.status_code != 200:
-                    print(f"  ⚠️  Failed to search topic '{topic}': HTTP {response.status_code}")
+                    print(f"  Failed to search topic '{topic}': HTTP {response.status_code}")
                     continue
                 
                 data = response.json()
@@ -581,42 +578,30 @@ def transform_issue_to_problem(issue_obj: Dict) -> Dict:
     if repo_topics:
         suggested_tech += ', ' + ', '.join(repo_topics[:3])
     
-    humanized_explanation = generate_humanized_explanation(title, body)
-    solution_possibility = classify_solution_type(body, repo_topics + labels)
-    
-    # Basic difficulty estimation based on topic weights
-    all_tags = set([t.lower() for t in labels + repo_topics + [repo_language]])
-    total_weight = sum(TOPIC_COMPLEXITY.get(t, DEFAULT_COMPLEXITY) for t in all_tags)
-    avg_weight = total_weight / len(all_tags) if all_tags else DEFAULT_COMPLEXITY
-    
-    if avg_weight >= 7:
-        difficulty = 'advanced'
-    elif avg_weight <= 3 or 'good-first-issue' in labels or 'beginner-friendly' in labels:
-        difficulty = 'beginner'
-    else:
-        difficulty = 'intermediate'
-    
     # Limit description length
-    description = body[:1000] if len(body) > 1000 else body
+    description = truncate_text(body, 1000)
     
     # Popularity score (not in Problem model, but useful for logging)
     popularity_score = comments_count + (plus_ones * 2)
     
+    # Minimal HTML decoding for titles
+    raw_title = html.unescape(title)
+    
     return {
-        'title': robust_clean_text(title),
-        'description': truncate_text(body, 1000),
+        'raw_title': raw_title,
+        'raw_description': body,
+        'raw_tags': labels,
         'source': f'github/{repo_full_name}',
         'source_id': str(issue_number),
         'date': date_str,
-        'suggested_tech': suggested_tech,
-        'humanized_explanation': humanized_explanation,
-        'solution_possibility': solution_possibility,
-        'difficulty': difficulty,
         'author_name': author_name,
         'author_id': author_id,
         'reference_link': html_url,
-        'tags': [label.replace(' ', '-') for label in labels],  # Normalize label names
-        '_popularity_score': popularity_score  # For internal use (not stored in DB)
+        # Metrics passthrough
+        'upvotes': plus_ones,
+        'downvotes': reactions.get('-1') or 0,
+        'comment_count': comments_count,
+        'engagement_score': popularity_score
     }
 
 
@@ -636,18 +621,18 @@ def scrape_github(limit: int = 10) -> List[Dict]:
     3. Filter for quality (has description, comments, recent activity)
     4. Transform to Problem format with difficulty/solution classification
     """
-    print(f"\n🔍 GITHUB ISSUES SCRAPER DEBUG LOG")
+    print(f"\nGITHUB ISSUES SCRAPER DEBUG LOG")
     print("=" * 60)
     
     # AUTHENTICATION CHECK
     print(f"📋 Checking GitHub credentials...")
     if GITHUB_TOKEN:
-        print(f"  GITHUB_TOKEN: ✓ SET (...{GITHUB_TOKEN[-8:]})")
+        print(f"  GITHUB_TOKEN: SET (...{GITHUB_TOKEN[-8:]})")
         print(f"  Rate Limit: 5000 requests/hour (authenticated)")
     else:
         print(f"  GITHUB_TOKEN: ✗ NOT SET")
         print(f"  Rate Limit: 60 requests/hour (unauthenticated)")
-        print(f"  ⚠️  WARNING: Low rate limit may cause issues. Set GITHUB_TOKEN in .env")
+        print(f"  WARNING: Low rate limit may cause issues. Set GITHUB_TOKEN in .env")
     print()
     
     problems = []
@@ -657,7 +642,7 @@ def scrape_github(limit: int = 10) -> List[Dict]:
     
     try:
         # PHASE 1: Discover Repositories
-        print(f"📊 Scraping Parameters:")
+        print(f"Scraping Parameters:")
         print(f"  Target problems: {limit}")
         print(f"  Topics: {', '.join(TOPICS[:8])}...")
         print(f"  Strategy: Multi-domain (web, ML, cloud, systems, IoT)")
@@ -684,7 +669,7 @@ def scrape_github(limit: int = 10) -> List[Dict]:
         
         for repo in repos:
             if len(problems) >= limit:
-                print(f"  ⏭️  Quota reached ({len(problems)}/{limit}), stopping")
+                print(f"  Quota reached ({len(problems)}/{limit}), stopping")
                 break
             
             print(f"  📡 {repo['full_name']}...", end=" ", flush=True)
@@ -719,22 +704,7 @@ def scrape_github(limit: int = 10) -> List[Dict]:
         print(f"  Filtered/errors: {total_filtered}")
         
         # Diversity breakdown
-        if problems:
-            print(f"\n📈 DIVERSITY BREAKDOWN:")
-            
-            # By difficulty
-            difficulties = {}
-            for p in problems:
-                diff = p.get('difficulty', 'unknown')
-                difficulties[diff] = difficulties.get(diff, 0) + 1
-            print(f"  Difficulty: " + ', '.join([f"{k}={v}" for k, v in sorted(difficulties.items())]))
-            
-            # By solution type
-            solution_types = {}
-            for p in problems:
-                sol_type = p.get('solution_possibility', 'unknown')
-                solution_types[sol_type] = solution_types.get(sol_type, 0) + 1
-            print(f"  Solution Type: " + ', '.join([f"{k}={v}" for k, v in sorted(solution_types.items())]))
+
         
         print("=" * 60 + "\n")
         return problems

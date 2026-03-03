@@ -40,7 +40,12 @@ const mapItemToProblem = (item: any): Problem => ({
   interestedCount: item.interested_count || 0,
   isInterested: item.is_interested || false,
   collaboratorsCount: 0,
-  createdAt: item.scraped_at || new Date().toISOString()
+  createdAt: item.scraped_at || new Date().toISOString(),
+  engineeringImpactScore: item.engineering_impact_score,
+  technicalDepthScore: item.technical_depth_score,
+  industryImpactScore: item.industry_impact_score,
+  cognitiveComplexityScore: item.cognitive_complexity_score,
+  signalQualityScore: item.signal_quality_score
 });
 
 export const apiService = {
@@ -198,15 +203,16 @@ export const apiService = {
     };
   },
 
-  semanticSearch: async (query: string): Promise<string[]> => {
-    const data = await fetch(`${API_BASE_URL}/search/semantic`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ query })
-    }).then(handleResponse);
-    return data;
+  semanticSearch: async (query: string): Promise<Problem[]> => {
+    try {
+      const data = await fetch(`${API_BASE_URL}/search/semantic?query=${encodeURIComponent(query)}&limit=20`)
+        .then(handleResponse);
+
+      return (data.results || []).map(mapItemToProblem);
+    } catch (error) {
+      console.error("Semantic search failed:", error);
+      return [];
+    }
   },
 
   getTrendingProblems: async (): Promise<Problem[]> => {

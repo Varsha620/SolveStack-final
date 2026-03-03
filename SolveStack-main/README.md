@@ -229,6 +229,20 @@ python add_sample_problems.py
 
 ## 📊 API Endpoints
 
+### Search
+- `GET /search` - **Intent-Aware intelligent retrieval**
+  - **query**: Natural language or conversational query (e.g., "how to fix memory leak in nextjs")
+  - **limit**: Results limit (default 10)
+  - **Two-Stage Architecture**:
+    1. **Stage 1 (Recall)**: Broad candidate retrieval using Vector + Full-Text Search.
+    2. **Stage 2 (Precision)**: Intelligent re-ranking with intent-based boosts (title match, description locality, technical difficulty).
+  - **Features**: Normalization, Synonym expansion, Embedding caching, Search logging.
+- `GET /search/semantic` - **Research-grade pure semantic search**
+  - **query**: Search string (max 500 chars)
+  - **limit**: Results limit (default 10)
+  - **min_score**: Similarity threshold [0-1]
+  - **Returns**: Ranked results with latency metadata and normalized scores.
+
 ### Authentication
 - `POST /register` - Create new user account
 - `POST /token` - Login and get JWT token

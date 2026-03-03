@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import List, Optional, Dict
-from datetime import datetime
+from datetime import datetime, date as date_type
 
 # ============ User Schemas ============
 
@@ -22,10 +22,6 @@ class UserResponse(BaseModel):
     username: str
     created_at: datetime
     is_premium: bool
-    skills: List[str] = []
-    interests: List[str] = []
-    experience_level: str = "Intermediate"
-    activity_score: int = 50
     interested_count: int = 0
     squads_count: int = 0
     
@@ -48,26 +44,60 @@ class ProblemBase(BaseModel):
     title: str
     description: Optional[str] = None
     source: str
-    date: str
+    date: date_type
     suggested_tech: str
     author_name: str
     author_id: str
     reference_link: str
-    tags: List[str] = []
+    tags: Optional[List[str]] = [] # Legacy tags field
+    
+    # Raw Fields
+    raw_title: Optional[str] = None
+    raw_description: Optional[str] = None
+    raw_tags: Optional[List[str]] = []
+    
+    # Processed Fields
+    cleaned_title: Optional[str] = None
+    cleaned_description: Optional[str] = None
+    normalized_title: Optional[str] = None
+    title_hash: Optional[str] = None
+    
+    # Scoring and Metadata
+    source_id: Optional[str] = None
+    difficulty_score: float = 0.0
+    difficulty_level: int = 0
+    upvotes: int = 0
+    downvotes: int = 0
+    comment_count: int = 0
+    engagement_score: float = 0.0
+    
+    # Metrics
+    text_length: int = 0
+    word_count: int = 0
+    has_code_block: bool = False
+    num_code_blocks: int = 0
+    
+    # Versioning
+    cleaned_at: Optional[datetime] = None
+    clean_version: str = "1.0.0"
+    
+    # Semantic Search Support
+    embedding: Optional[List[float]] = None
 
 class ProblemResponse(ProblemBase):
     """Schema for problem in responses"""
     ps_id: int
     scraped_at: datetime
     interested_count: int = 0  # Will be computed
-    
-    # Phase 4: Multi-Source Fields (optional for backward compatibility)
-    source_id: Optional[str] = None
-    humanized_explanation: Optional[str] = None
-    solution_possibility: Optional[str] = None
-    difficulty: Optional[str] = "Intermediate"  # Calculated difficulty level
     is_interested: bool = False  # True if current user marked interest
     
+    # EIS Score
+    engineering_impact_score: Optional[float] = 0.0
+    technical_depth_score: Optional[float] = 0.0
+    industry_impact_score: Optional[float] = 0.0
+    cognitive_complexity_score: Optional[float] = 0.0
+    signal_quality_score: Optional[float] = 0.0
+
     class Config:
         from_attributes = True
 
@@ -152,55 +182,102 @@ class ScrapeAllResponse(BaseModel):
     github_count: int = 0
     stackoverflow_count: int = 0
     hackernews_count: int = 0
-    duplicates_skipped: int = 0
 
-# ============ Phase 2C: Quality Scoring & Matching Schemas ============
-
-class QualityScoreBreakdown(BaseModel):
-    """Component scores for quality scoring"""
-    score: int
-    max: int
-    reasons: List[str]
-
-class QualityScoreResponse(BaseModel):
-    """Response for problem quality scoring"""
-    problem_id: int
-    quality_score: int  # 0-100
-    difficulty: str  # Beginner/Intermediate/Advanced
-    estimated_effort: str  # Time estimate
-    breakdown: Dict[str, QualityScoreBreakdown]
-    message: str
-
-class RecommendationItem(BaseModel):
-    """Single problem recommendation"""
-    problem_id: int
+class HybridSearchResponse(BaseModel):
+    """Schema for hybrid search result"""
+    ps_id: int
     title: str
-    suggested_tech: str
-    difficulty: str
-    estimated_effort: str
-    quality_score: int
-    match_score: int  # 0-100
-    reasons: List[str]  # Why recommended
-    
-class RecommendationsResponse(BaseModel):
-    """Response for GET /recommendations"""
-    user_id: int
-    username: str
-    total_recommendations: int
-    recommendations: List[RecommendationItem]
+    description: Optional[str] = None
+    semantic_score: float
+    keyword_score: float
+    tag_score: float
+    final_score: float
 
-class CollaboratorSuggestion(BaseModel):
-    """Single collaborator suggestion"""
-    user_id: int
-    username: str
-    skills: List[str]
-    experience_level: str
-    compatibility_score: int  # 0-100
-    reasons: List[str]  # Why compatible
+    class Config:
+        from_attributes = True
 
-class CollaborationSuggestionsResponse(BaseModel):
-    """Response for GET /collaborate/suggestions/{problem_id}"""
+class SemanticSearchResult(BaseModel):
+    """Schema for a single semantic search result"""
+    ps_id: int
+    title: str
+    description: Optional[str] = None
+    tags: Optional[List[str]] = []
+    semantic_score: float
+
+class SemanticSearchMetadata(BaseModel):
+    """Metadata for semantic search performance and model info"""
+    model: Optional[str] = None
+    embedding_dim: Optional[int] = None
+    normalized: Optional[bool] = None
+    query_time_ms: Optional[float] = None
+    db_time_ms: Optional[float] = None
+    total_time_ms: Optional[float] = None
+    # For intent-aware search reuse
+    latency_ms: Optional[float] = None
+    stage1_candidates: Optional[int] = None
+    reranking: Optional[str] = None
+    processed_query: Optional[dict] = None
+
+class SemanticSearchResponse(BaseModel):
+    """Full response for semantic search"""
+    query: str
+    results: List[SemanticSearchResult]
+    metadata: SemanticSearchMetadata
+
+class SearchResultScores(BaseModel):
+    semantic: float
+    keyword: float
+    tag: float
+    final: float
+
+class IntentAwareSearchResult(BaseModel):
+    ps_id: int
+    title: str
+    description: Optional[str] = None
+    tags: Optional[List[str]] = []
+    scores: SearchResultScores
+
+class IntentAwareSearchMetadata(BaseModel):
+    latency_ms: float
+    stage1_candidates: int
+    reranking: str
+    processed_query: Optional[dict] = None
+
+class IntentAwareSearchResponse(BaseModel):
+    query: str
+    results: List[IntentAwareSearchResult]
+    metadata: IntentAwareSearchMetadata
+
+class ShelfQueryResult(BaseModel):
+    id: int
+    title: str
+    engineering_impact_score: float
+    technical_depth_score: float
+    industry_impact_score: float
+    cognitive_complexity_score: float
+    signal_quality_score: float
+    tags: Optional[List[str]] = []
+
+class ShelfResponse(BaseModel):
+    mode: str
+    total_found: int
+    results: List[ShelfQueryResult]
+
+class ImpactExplanation(BaseModel):
     problem_id: int
-    problem_title: str
-    total_suggestions: int
-    suggestions: List[CollaboratorSuggestion]
+    engineering_impact_score: float
+    breakdown: dict
+    explanation: str
+    thinking_type: str
+    signals_contributed: List[str]
+
+class EISDistribution(BaseModel):
+    bucket: str
+    count: int
+
+class ShelfAnalytics(BaseModel):
+    total_analyzed: int
+    low_signal_percentage: float
+    avg_impact_score: float
+    top_impact_problems: List[dict]
+    eis_distribution: List[EISDistribution]

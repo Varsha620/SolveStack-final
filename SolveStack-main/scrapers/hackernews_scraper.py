@@ -11,14 +11,10 @@ import re
 from datetime import datetime
 from typing import List, Dict
 import requests
+import html
 from text_utils import clean_text as robust_clean_text, truncate_text
 
-# Import centralized logic
-from scoring_engine import (
-    generate_humanized_explanation,
-    classify_solution_type,
-    TOPIC_COMPLEXITY
-)
+
 
 
 # Hacker News API Configuration
@@ -46,13 +42,6 @@ def extract_keywords(text: str) -> List[str]:
     for keyword in PAIN_POINT_KEYWORDS:
         if keyword in text_lower:
             found_keywords.append(keyword)
-    
-    # Also check for common tech terms from scoring engine
-    tech_terms = list(TOPIC_COMPLEXITY.keys())
-    
-    for term in tech_terms:
-        if term in text_lower and term not in found_keywords:
-            found_keywords.append(term)
     
     return found_keywords[:5]  # Limit to 5 tags
 
@@ -156,22 +145,32 @@ def scrape_hackernews(limit: int = 10) -> List[Dict]:
                 title_clean = re.sub(r'^Ask HN:\s*', '', title, flags=re.IGNORECASE).strip()
                 tags = extract_keywords(f"{title} {text_clean}")
                 suggested_tech = ', '.join(tags) if tags else 'General Tech'
-                humanized_explanation = generate_humanized_explanation(title_clean, text_clean)
-                solution_possibility = classify_solution_type(f"{title_clean} {text_clean}", tags)
+                humanized_explanation = ""
+                solution_possibility = ""
                 
+                # Metrics
+                score = story.get('score', 0)
+                comment_count = story.get('descendants', 0)
+                engagement_score = float(score) + (float(comment_count) * 2.0)
+
+                # Minimal decoding for titles
+                raw_title = html.unescape(title_clean)
+
                 problem = {
-                    'title': robust_clean_text(title_clean),
-                    'description': truncate_text(text_clean, 1000),  # Limit description length
+                    'raw_title': raw_title,
+                    'raw_description': text_clean,
+                    'raw_tags': tags,
                     'source': 'hackernews',
                     'source_id': str(story_id),
                     'reference_link': f"https://news.ycombinator.com/item?id={story_id}",
-                    'tags': tags,
-                    'suggested_tech': suggested_tech,
-                    'humanized_explanation': humanized_explanation,
-                    'solution_possibility': solution_possibility,
                     'date': date_str,
                     'author_name': author,
-                    'author_id': author
+                    'author_id': author,
+                    
+                    # Metrics passthrough
+                    'upvotes': score,
+                    'comment_count': comment_count,
+                    'engagement_score': engagement_score
                 }
                 
                 problems.append(problem)
