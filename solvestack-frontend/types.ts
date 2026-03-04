@@ -38,6 +38,7 @@ export interface Problem {
   industryImpactScore?: number;
   cognitiveComplexityScore?: number;
   signalQualityScore?: number;
+  isNew?: boolean;
 }
 
 export interface User {

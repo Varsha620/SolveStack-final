@@ -103,10 +103,18 @@ const Dashboard: React.FC = () => {
   const handleRunScrapers = async () => {
     setIsScraping(true);
     try {
-      await apiService.scrapeProblems();
-      // After scraping finishes, refresh the problems list
-      const data = await apiService.getProblems(0, offset + LIMIT);
-      setProblems(data);
+      const result = await apiService.scrapeProblems();
+
+      if (result.newProblems && result.newProblems.length > 0) {
+        // Prepend new problems smoothly and mark them as new
+        const newProblemsWithBadge = result.newProblems.map(p => ({ ...p, isNew: true }));
+        setProblems(prev => [...newProblemsWithBadge, ...prev]);
+
+        // Optional: show a small toast or notification if we had a library for it
+        console.log(`Added ${result.newProblems.length} new problems to the shelf.`);
+      } else {
+        console.log("No new problems found in this sync.");
+      }
     } catch (error) {
       console.error("Scraping failed:", error);
       alert("Scraping failed. Please check the backend logs.");

@@ -1,3 +1,7 @@
+from dotenv import load_dotenv
+import os
+load_dotenv()
+
 from fastapi import FastAPI, Depends, HTTPException, status, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
@@ -20,6 +24,7 @@ from schemas import (
 )
 from search_service import get_search_service
 from impact_explanation_service import get_explanation_service
+from prototype_service import get_prototype_service
 from auth import (
     get_password_hash,
     verify_password,
@@ -27,9 +32,10 @@ from auth import (
     get_current_user
 )
 from cleaning_layer import DataCleaner
+from engineering_scoring_engine import get_scoring_engine
 
 
-load_dotenv()
+
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -149,7 +155,10 @@ def get_current_user_info(current_user: User = Depends(get_current_user), db: Se
         "created_at": current_user.created_at,
         "is_premium": current_user.is_premium,
         "interested_count": interested_count,
-        "squads_count": squads_count
+        "squads_count": squads_count,
+        "skills": current_user.skills or [],
+        "interests": current_user.interests or [],
+        "activity_score": current_user.activity_score or 0
     }
 
 
@@ -333,7 +342,7 @@ def get_shelf(
     }
 
 
-@app.get("/shelf/{problem_id}/explain", response_model=ImpactExplanation, tags=["Shelf Intelligence"])
+@app.get("/shelf/{problem_id}/explain", tags=["Shelf Intelligence"])
 def explain_impact(
     problem_id: int,
     db: Session = Depends(get_db)
@@ -347,6 +356,23 @@ def explain_impact(
         
     explanation_service = get_explanation_service()
     return explanation_service.explain_score(problem)
+
+
+@app.get("/problems/{problem_id}/prototype", tags=["Shelf Intelligence"])
+async def get_problem_prototype(
+    problem_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Generate an AI implementation plan for a problem.
+    """
+    problem = db.query(Problem).filter(Problem.ps_id == problem_id).first()
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found")
+    
+    prototype_service = get_prototype_service()
+    plan = await prototype_service.generate_implementation_plan(problem)
+    return {"problem_id": problem_id, "implementation_plan": plan}
 
 
 @app.get("/analytics/shelf", response_model=ShelfAnalytics, tags=["Shelf Intelligence"])
@@ -681,7 +707,7 @@ def scrape_all_sources(db: Session = Depends(get_db)):
         return False
 
     def insert_problems(problems_raw, source_key):
-        inserted = 0
+        inserted_problems = []
         deduped = 0
         nonlocal total_cleaned, records_with_code
         
@@ -698,19 +724,30 @@ def scrape_all_sources(db: Session = Depends(get_db)):
                     deduped += 1
                     continue
                 
-                # 3. Insert
+                # 3. Insert and Score
                 new_problem = Problem(**cleaned_p)
+                
+                # Apply Engineering Impact Scoring
+                try:
+                    scoring_engine = get_scoring_engine()
+                    scores = scoring_engine.calculate_scores(new_problem)
+                    for attr, val in scores.items():
+                        setattr(new_problem, attr, val)
+                except Exception as score_err:
+                    print(f"Scoring error for problem: {score_err}")
+                
                 db.add(new_problem)
                 db.commit()
+                db.refresh(new_problem) # Ensure we have the ps_id
                 
                 seen_hashes.add(cleaned_p['title_hash'])
-                inserted += 1
+                inserted_problems.append(new_problem)
             except Exception as e:
                 print(f"Insertion error ({source_key}): {e}")
                 db.rollback()
                 continue
         
-        return inserted, deduped
+        return inserted_problems, deduped
     
     # QUOTA ENFORCEMENT CONSTANTS
     TARGET_TOTAL = 30
@@ -733,6 +770,8 @@ def scrape_all_sources(db: Session = Depends(get_db)):
         print(f"📊 STRATEGY: {INITIAL_PER_SOURCE} per source, redistribute if needed")
         print("=" * 70)
         
+        all_new_problems_objects = []
+        
         # PHASE 1: Initial scraping (10 from each source)
         print(f"\n📥 PHASE 1: Initial Scraping ({INITIAL_PER_SOURCE} per source)")
         print("-" * 70)
@@ -742,7 +781,9 @@ def scrape_all_sources(db: Session = Depends(get_db)):
         try:
             github_problems = scrape_github(limit=INITIAL_PER_SOURCE)
             github_fetched = len(github_problems)
-            github_count, github_dups = insert_problems(github_problems, "github")
+            github_new, github_dups = insert_problems(github_problems, "github")
+            all_new_problems_objects.extend(github_new)
+            github_count = len(github_new)
             total_duplicates += github_dups
             source_results["github"] = github_count
             print(f"  ✅ GitHub: {github_count} inserted, {github_dups} duplicates")
@@ -755,7 +796,9 @@ def scrape_all_sources(db: Session = Depends(get_db)):
         try:
             stackoverflow_problems = scrape_stackoverflow(limit=INITIAL_PER_SOURCE)
             stackoverflow_fetched = len(stackoverflow_problems)
-            stackoverflow_count, so_dups = insert_problems(stackoverflow_problems, "stackoverflow")
+            stackoverflow_new, so_dups = insert_problems(stackoverflow_problems, "stackoverflow")
+            all_new_problems_objects.extend(stackoverflow_new)
+            stackoverflow_count = len(stackoverflow_new)
             total_duplicates += so_dups
             source_results["stackoverflow"] = stackoverflow_count
             print(f"  ✅ Stack Overflow: {stackoverflow_count} inserted, {so_dups} duplicates")
@@ -768,7 +811,9 @@ def scrape_all_sources(db: Session = Depends(get_db)):
         try:
             hackernews_problems = scrape_hackernews(limit=INITIAL_PER_SOURCE)
             hackernews_fetched = len(hackernews_problems)
-            hackernews_count, hn_dups = insert_problems(hackernews_problems, "hackernews")
+            hackernews_new, hn_dups = insert_problems(hackernews_problems, "hackernews")
+            all_new_problems_objects.extend(hackernews_new)
+            hackernews_count = len(hackernews_new)
             total_duplicates += hn_dups
             source_results["hackernews"] = hackernews_count
             print(f"  ✅ Hacker News: {hackernews_count} inserted, {hn_dups} duplicates")
@@ -804,13 +849,14 @@ def scrape_all_sources(db: Session = Depends(get_db)):
                     try:
                         extra_github = scrape_github(limit=additional_per_source)
                         if extra_github:
-                            extra_count, extra_dups = insert_problems(extra_github, "github")
-                            github_count += extra_count
+                            extra_new, extra_dups = insert_problems(extra_github, "github")
+                            all_new_problems_objects.extend(extra_new)
+                            github_count += len(extra_new)
                             source_results["github"] = github_count
                             github_fetched += len(extra_github)
                             total_duplicates += extra_dups
-                            current_total += extra_count
-                            print(f"    GitHub: +{extra_count} ({extra_dups} dups)")
+                            current_total += len(extra_new)
+                            print(f"    GitHub: +{len(extra_new)} ({extra_dups} dups)")
                     except:
                         pass
                 
@@ -819,13 +865,14 @@ def scrape_all_sources(db: Session = Depends(get_db)):
                     try:
                         extra_so = scrape_stackoverflow(limit=additional_per_source)
                         if extra_so:
-                            extra_count, extra_dups = insert_problems(extra_so, "stackoverflow")
-                            stackoverflow_count += extra_count
+                            extra_new, extra_dups = insert_problems(extra_so, "stackoverflow")
+                            all_new_problems_objects.extend(extra_new)
+                            stackoverflow_count += len(extra_new)
                             source_results["stackoverflow"] = stackoverflow_count
                             stackoverflow_fetched += len(extra_so)
                             total_duplicates += extra_dups
-                            current_total += extra_count
-                            print(f"    Stack Overflow: +{extra_count} ({extra_dups} dups)")
+                            current_total += len(extra_new)
+                            print(f"    Stack Overflow: +{len(extra_new)} ({extra_dups} dups)")
                     except:
                         pass
                 
@@ -834,13 +881,14 @@ def scrape_all_sources(db: Session = Depends(get_db)):
                     try:
                         extra_hn = scrape_hackernews(limit=additional_per_source)
                         if extra_hn:
-                            extra_count, extra_dups = insert_problems(extra_hn, "hackernews")
-                            hackernews_count += extra_count
+                            extra_new, extra_dups = insert_problems(extra_hn, "hackernews")
+                            all_new_problems_objects.extend(extra_new)
+                            hackernews_count += len(extra_new)
                             source_results["hackernews"] = hackernews_count
                             hackernews_fetched += len(extra_hn)
                             total_duplicates += extra_dups
-                            current_total += extra_count
-                            print(f"    Hacker News: +{extra_count} ({extra_dups} dups)")
+                            current_total += len(extra_new)
+                            print(f"    Hacker News: +{len(extra_new)} ({extra_dups} dups)")
                     except:
                         pass
                 
@@ -863,6 +911,17 @@ def scrape_all_sources(db: Session = Depends(get_db)):
         print(f"  Hacker News:    {hackernews_count:>3} added ({hackernews_fetched} fetched)")
         print("=" * 70 + "\n")
         
+        # COLLECT ALL NEW PROBLEMS (Safely)
+        all_new_problems = []
+        try:
+            for p in all_new_problems_objects:
+                 try:
+                      all_new_problems.append(_map_problem_to_response(p, None))
+                 except Exception as e:
+                      print(f"Mapping error for problem {getattr(p, 'ps_id', 'unknown')}: {e}")
+        except Exception as e:
+            print(f"Error collecting all new problems: {e}")
+
         return {
             "message": f"Successfully scraped {current_total} new problems ({total_duplicates} duplicates skipped)",
             "total_scraped": current_total,
@@ -877,7 +936,8 @@ def scrape_all_sources(db: Session = Depends(get_db)):
             "hackernews_fetched": hackernews_fetched,
             "duplicates_skipped": total_duplicates,
             "target_per_source": INITIAL_PER_SOURCE,
-            "target_total": TARGET_TOTAL
+            "target_total": TARGET_TOTAL,
+            "new_problems": all_new_problems
         }
     
     except Exception as e:

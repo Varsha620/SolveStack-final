@@ -229,15 +229,42 @@ export const apiService = {
     }
   },
 
-  scrapeProblems: async (): Promise<{ message: string; total_scraped: number }> => {
+  scrapeProblems: async (): Promise<{ message: string; totalScraped: number; newProblems: Problem[] }> => {
     try {
       const data = await fetch(`${API_BASE_URL}/scrape/all`, {
         method: 'POST'
       }).then(handleResponse);
-      return data;
+
+      return {
+        message: data.message,
+        totalScraped: data.total_scraped,
+        newProblems: (data.new_problems || []).map(mapItemToProblem)
+      };
     } catch (error) {
       console.error("Failed to trigger scraping:", error);
       throw error;
+    }
+  },
+
+  async getExplanation(id: string | number) {
+    try {
+      const resp = await fetch(`${API_BASE_URL}/shelf/${id}/explain`);
+      if (!resp.ok) return null;
+      return await resp.json();
+    } catch (error) {
+      console.error("Failed to fetch explanation", error);
+      return null;
+    }
+  },
+
+  async getPrototype(id: string | number) {
+    try {
+      const resp = await fetch(`${API_BASE_URL}/problems/${id}/prototype`);
+      if (!resp.ok) return null;
+      return await resp.json();
+    } catch (error) {
+      console.error("Failed to generate prototype plan", error);
+      return null;
     }
   }
 };

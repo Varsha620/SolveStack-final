@@ -29,6 +29,11 @@ class User(Base):
     is_premium = Column(Boolean, default=False)
     stripe_customer_id = Column(String(255), nullable=True)
     
+    # Profile/Gamification Fields
+    skills = Column(JSON, default=[])
+    interests = Column(JSON, default=[])
+    activity_score = Column(Integer, default=0)
+    
     # Relationships
     interested_problems = relationship(
         'Problem', 

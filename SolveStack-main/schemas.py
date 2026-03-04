@@ -24,6 +24,9 @@ class UserResponse(BaseModel):
     is_premium: bool
     interested_count: int = 0
     squads_count: int = 0
+    skills: List[str] = []
+    interests: List[str] = []
+    activity_score: int = 0
     
     class Config:
         from_attributes = True  # Pydantic v2 (was orm_mode in v1)

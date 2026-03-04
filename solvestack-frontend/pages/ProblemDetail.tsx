@@ -14,10 +14,12 @@ import {
   Layers,
   Sparkles,
   Zap,
-  Loader2
+  Loader2,
+  BarChart3
 } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { useAuth } from '../contexts/AuthContext';
+import InferenceOverlay from '../components/InferenceOverlay';
 
 const ProblemDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +32,12 @@ const ProblemDetail: React.FC = () => {
   const [interested, setInterested] = useState(false);
   const [count, setCount] = useState(0);
   const [loadingInterest, setLoadingInterest] = useState(false);
+
+  // Expo Showmanship States
+  const [isOverlayOpen, setIsOverlayOpen] = useState(false);
+  const [overlayLoading, setOverlayLoading] = useState(false);
+  const [explanationData, setExplanationData] = useState<any>(null);
+  const [prototypeData, setPrototypeData] = useState<any>(null);
 
   useEffect(() => {
     const fetch = async () => {
@@ -76,23 +84,23 @@ const ProblemDetail: React.FC = () => {
     }
   };
 
-  const generateAiInsight = async () => {
-    if (!problem) return;
-    setLoadingAi(true);
+  const handleShowIntelligence = async (mode: 'explain' | 'prototype') => {
+    setIsOverlayOpen(true);
+    if (mode === 'explain' && explanationData) return;
+    if (mode === 'prototype' && prototypeData) return;
+
+    setOverlayLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Given this problem: "${problem.title}". Description: "${problem.description}". Human Explanation: "${problem.humanExplanation}". Suggest a clear, step-by-step technical roadmap for a team of developers to build a Minimum Viable Product (MVP). Keep it concise and professional.`,
-        config: {
-          temperature: 0.7,
-        }
-      });
-      setAiInsight(response.text || 'Failed to generate insight.');
+      const [expl, proto] = await Promise.all([
+        explanationData ? Promise.resolve(explanationData) : apiService.getExplanation(problem?.id || ''),
+        mode === 'prototype' ? apiService.getPrototype(problem?.id || '') : Promise.resolve(prototypeData)
+      ]);
+      setExplanationData(expl);
+      if (proto) setPrototypeData(proto);
     } catch (error) {
-      setAiInsight('Error connecting to Gemini. Please try again.');
+      console.error("Failed to fetch intelligence", error);
     } finally {
-      setLoadingAi(false);
+      setOverlayLoading(false);
     }
   };
 
@@ -196,35 +204,32 @@ const ProblemDetail: React.FC = () => {
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-bold flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-cyan-400" />
-                  AI Execution Roadmap
+                  AI Discovery & Execution
                 </h3>
-                {!aiInsight && !loadingAi && (
-                  <button
-                    onClick={generateAiInsight}
-                    className="px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/30 rounded-lg text-xs font-bold transition-all"
-                  >
-                    Generate Smart Brief
-                  </button>
-                )}
               </div>
 
-              {loadingAi ? (
-                <div className="space-y-4">
-                  <div className="h-4 w-full bg-white/5 animate-pulse rounded" />
-                  <div className="h-4 w-3/4 bg-white/5 animate-pulse rounded" />
-                  <div className="h-4 w-1/2 bg-white/5 animate-pulse rounded" />
-                </div>
-              ) : aiInsight ? (
-                <div className="prose prose-invert prose-sm max-w-none text-white/70 leading-relaxed">
-                  {aiInsight.split('\n').map((line, i) => (
-                    <p key={i}>{line}</p>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-white/30 text-sm">
-                  Let SolveStack AI analyze this problem and suggest a potential tech stack and MVP roadmap.
-                </p>
-              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  onClick={() => handleShowIntelligence('explain')}
+                  className="p-6 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl text-left transition-all group"
+                >
+                  <BarChart3 className="w-6 h-6 text-cyan-400 mb-4 group-hover:scale-110 transition-transform" />
+                  <h4 className="font-bold mb-1">Explain Intelligence</h4>
+                  <p className="text-xs text-white/40">View the heuristic breakdown of why this problem ranks for high impact.</p>
+                </button>
+
+                {/* Hiding Launch Prototype for now due to Quota issues */}
+                {/* 
+                <button
+                  onClick={() => handleShowIntelligence('prototype')}
+                  className="p-6 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 rounded-2xl text-left transition-all group"
+                >
+                  <Zap className="w-6 h-6 text-cyan-400 mb-4 group-hover:scale-110 transition-transform" />
+                  <h4 className="font-bold mb-1 text-cyan-400">Launch Prototype</h4>
+                  <p className="text-xs text-cyan-400/40">Generate a custom 3-step technical roadmap for MVP implementation.</p>
+                </button>
+                */}
+              </div>
             </section>
           </div>
 
@@ -288,6 +293,15 @@ const ProblemDetail: React.FC = () => {
           </div>
         </div>
       </main>
+
+      <InferenceOverlay
+        isOpen={isOverlayOpen}
+        onClose={() => setIsOverlayOpen(false)}
+        problemTitle={problem.title}
+        explanationData={explanationData}
+        prototypeData={prototypeData}
+        loading={overlayLoading}
+      />
     </div>
   );
 };
