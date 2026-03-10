@@ -178,13 +178,13 @@ const Dashboard: React.FC = () => {
           </Link>
         </nav>
 
-        <div className="mt-auto p-4 rounded-xl bg-gradient-to-br from-cyan-500/20 to-purple-500/10 border border-white/5">
+        {/* <div className="mt-auto p-4 rounded-xl bg-gradient-to-br from-cyan-500/20 to-purple-500/10 border border-white/5">
           <h4 className="text-sm font-bold mb-1">Pro Feature</h4>
           <p className="text-xs text-white/50 mb-3">Get real-time alerts for problems in your stack.</p>
           <button className="w-full py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-white/90 transition-all">
             Upgrade Now
           </button>
-        </div>
+        </div> */}
       </aside>
 
       {/* Main Content */}
