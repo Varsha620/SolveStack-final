@@ -41,6 +41,17 @@ class User(Base):
         back_populates='interested_users'
     )
     
+    @property
+    def interested_count(self) -> int:
+        return len(self.interested_problems) if self.interested_problems else 0
+
+    @property
+    def squads_count(self) -> int:
+        # Avoid recursion or circular errors by checking if attribute exists
+        if not hasattr(self, 'collaboration_requests'):
+            return 0
+        return len([r for r in self.collaboration_requests if r.status == 'accepted'])
+
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
 
@@ -178,36 +189,29 @@ class CollaborationRequest(Base):
 
 class CollaborationGroup(Base):
     """
-    Represents active collaboration groups for a problem.
+    Represents a Squad — a collaboration group started by a leader for a problem.
     
-    Business Rules:
-    - ONE group per problem (enforced at application level)
-    - Minimum 2 members to create/maintain a group
-    - Auto-created when ≥2 users have accepted status
-    - If members drop below 2, group becomes inactive
-    
-    Future Extensions:
-    - firebase_room_id: Link to Firebase Realtime Database chat room (Phase 3)
-    - is_premium: Flag for Stripe premium groups with extra features
-    - max_members: Configurable group size limits
-    - group_name: User-defined group names
-    - tags: Skill tags for smart matching
+    Users can browse public squads, request to join, and chat in real-time once accepted.
     """
     __tablename__ = 'collaboration_groups'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    problem_id = Column(Integer, ForeignKey('problems.ps_id'), nullable=False, unique=True)  # ONE group per problem
+    problem_id = Column(Integer, ForeignKey('problems.ps_id'), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     is_active = Column(Boolean, default=True)
     
-    # Firebase room ID (nullable for now, will be set in Phase 3)
-    # Format: "room_{problem_id}_{uuid}" for uniqueness
-    firebase_room_id = Column(String(100), unique=True, nullable=True)
+    # Squad identity
+    name = Column(String(200), nullable=True)
+    description = Column(Text, nullable=True)  # Leader's goals and aims
+    leader_id = Column(Integer, ForeignKey('users.id'), nullable=True)  # The user who created the squad
     
     # Relationships
     problem = relationship('Problem', back_populates='collaboration_groups')
-    
-    # Many-to-many with users (group members)
+    leader = relationship('User', foreign_keys=[leader_id])
+    join_requests = relationship('SquadJoinRequest', back_populates='squad', cascade='all, delete-orphan')
+    messages = relationship('SquadMessage', back_populates='squad', cascade='all, delete-orphan', order_by='SquadMessage.sent_at')
+
+    # Many-to-many with users (squad members)
     members = relationship(
         'User',
         secondary=group_members,
@@ -215,7 +219,53 @@ class CollaborationGroup(Base):
     )
     
     def __repr__(self):
-        return f"<CollaborationGroup(id={self.id}, problem_id={self.problem_id}, members={len(self.members)}, active={self.is_active})>"
+        return f"<CollaborationGroup(id={self.id}, name='{self.name}', problem_id={self.problem_id}, active={self.is_active})>"
+
+
+class SquadJoinRequest(Base):
+    """Tracks join requests from users wanting to join a squad."""
+    __tablename__ = 'squad_join_requests'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    squad_id = Column(Integer, ForeignKey('collaboration_groups.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    status = Column(String(20), default='pending', nullable=False)  # pending/accepted/rejected
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    squad = relationship('CollaborationGroup', back_populates='join_requests')
+    user = relationship('User')
+    
+    __table_args__ = (
+        UniqueConstraint('squad_id', 'user_id', name='unique_squad_user_request'),
+        Index('idx_squad_join_status', 'squad_id', 'status'),
+    )
+    
+    def __repr__(self):
+        return f"<SquadJoinRequest(squad_id={self.squad_id}, user_id={self.user_id}, status='{self.status}')>"
+
+
+class SquadMessage(Base):
+    """Chat messages within a squad. Used by the WebSocket real-time chat."""
+    __tablename__ = 'squad_messages'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    squad_id = Column(Integer, ForeignKey('collaboration_groups.id'), nullable=False)
+    sender_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    content = Column(Text, nullable=False)
+    sent_at = Column(DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationships
+    squad = relationship('CollaborationGroup', back_populates='messages')
+    sender = relationship('User')
+    
+    __table_args__ = (
+        Index('idx_squad_messages_time', 'squad_id', 'sent_at'),
+    )
+    
+    def __repr__(self):
+        return f"<SquadMessage(squad_id={self.squad_id}, sender_id={self.sender_id})>"
 
 
 class SearchLog(Base):

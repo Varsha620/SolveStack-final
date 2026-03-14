@@ -10,6 +10,7 @@ import {
     LayoutGrid,
     TrendingUp,
     Layers,
+    Users,
     Clock,
     ArrowLeft,
     Loader2
@@ -73,6 +74,10 @@ const Interests: React.FC = () => {
                         <Heart className="w-5 h-5 fill-current text-red-500" />
                         <span className="text-sm font-bold">My Interests</span>
                     </div>
+                    <Link to="/squads" className="flex items-center gap-3 px-4 py-3 text-white/40 hover:text-white transition-colors rounded-xl">
+                        <Users className="w-5 h-5" />
+                        <span className="text-sm font-bold">Your Squads</span>
+                    </Link>
                     <Link to="/profile" className="flex items-center gap-3 px-4 py-3 text-white/40 hover:text-white transition-colors rounded-xl">
                         <Layers className="w-5 h-5" />
                         <span className="text-sm font-bold">My Solutions</span>

@@ -14,6 +14,7 @@ torchaudio
 
 # AI models
 transformers==4.57.3
+groq>=0.9.0
 
 # Utilities
 tqdm==4.67.1

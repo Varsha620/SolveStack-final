@@ -39,6 +39,7 @@ export interface Problem {
   cognitiveComplexityScore?: number;
   signalQualityScore?: number;
   isNew?: boolean;
+  squadStatus?: 'pending' | 'accepted' | 'rejected' | 'none';
 }
 
 export interface User {

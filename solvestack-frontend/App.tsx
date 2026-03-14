@@ -9,6 +9,8 @@ import Profile from './pages/Profile';
 import Auth from './pages/Auth';
 import Interests from './pages/Interests';
 import Trending from './pages/Trending';
+import Squads from './pages/Squads';
+import SquadChat from './pages/SquadChat';
 
 import { AuthProvider } from './contexts/AuthContext';
 
@@ -22,6 +24,8 @@ const App: React.FC = () => {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/trending" element={<Trending />} />
           <Route path="/interests" element={<Interests />} />
+          <Route path="/squads" element={<Squads />} />
+          <Route path="/squads/:id/chat" element={<SquadChat />} />
           <Route path="/problem/:id" element={<ProblemDetail />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/login" element={<Auth />} />

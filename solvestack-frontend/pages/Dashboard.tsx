@@ -55,8 +55,26 @@ const Dashboard: React.FC = () => {
       const data = await apiService.getProblems(0, LIMIT);
       setProblems(data);
       setOffset(LIMIT);
-      setLoading(false);
       setHasMore(data.length === LIMIT);
+
+      if (data.length === 0) {
+        // Shelf is empty, auto-trigger the scrapers
+        setIsScraping(true);
+        try {
+          const result = await apiService.scrapeProblems();
+          if (result.newProblems && result.newProblems.length > 0) {
+            const newProblemsWithBadge = result.newProblems.map(p => ({ ...p, isNew: true }));
+            setProblems(newProblemsWithBadge);
+            setHasMore(newProblemsWithBadge.length >= LIMIT);
+          }
+        } catch (error) {
+          console.error("Auto-scraping failed:", error);
+        } finally {
+          setIsScraping(false);
+        }
+      }
+
+      setLoading(false);
     };
     fetch();
   }, []);
@@ -164,10 +182,10 @@ const Dashboard: React.FC = () => {
             <TrendingUp className="w-5 h-5" />
             Trending
           </Link>
-          <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-all">
+          <Link to="/squads" className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-all">
             <Layers className="w-5 h-5" />
             Your Squads
-          </button>
+          </Link>
           <Link to="/interests" className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-all">
             <Sparkles className="w-5 h-5" />
             Interests

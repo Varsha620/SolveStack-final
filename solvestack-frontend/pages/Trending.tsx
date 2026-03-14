@@ -47,10 +47,10 @@ const Trending: React.FC = () => {
                         <TrendingUp className="w-5 h-5" />
                         Trending
                     </Link>
-                    <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-all">
+                    <Link to="/squads" className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-all">
                         <Layers className="w-5 h-5" />
                         Your Squads
-                    </button>
+                    </Link>
                     <Link to="/interests" className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-all">
                         <Sparkles className="w-5 h-5" />
                         Interests

@@ -84,10 +84,45 @@ class DataCleaner:
         problem["num_code_blocks"] = code_count
         
         # Passthrough scoring fields if present
-        for field in ["upvotes", "downvotes", "comment_count", "engagement_score", "difficulty_score", "difficulty_level"]:
+        for field in ["upvotes", "downvotes", "comment_count", "engagement_score", "difficulty_score"]:
             problem[field] = raw_problem.get(field, 0 if "score" not in field else 0.0)
 
+        # 5. Determine Difficulty Level algorithmically
+        problem["difficulty_level"] = self._calculate_difficulty_level(problem["cleaned_title"], problem["cleaned_description"], problem["tags"])
+
         return problem
+
+    def _calculate_difficulty_level(self, title: str, description: str, tags: List[str]) -> int:
+        """
+        Determines the difficulty level (1=Beginner, 2=Intermediate, 3=Advanced) based on keyword heuristics.
+        """
+        content = f"{title} {description}".lower()
+        
+        advanced_keywords = [
+            "distributed", "concurrency", "scaling", "optimization", "orchestration", 
+            "kubernetes", "k8s", "microservices", "architecture", "performance", "throughput", 
+            "latency", "bottleneck", "memory leak", "race condition", "deadlock", "kernel", "compiler"
+        ]
+        
+        beginner_keywords = [
+            "how to", "beginner", "getting started", "tutorial", "simple", "basic", "install", 
+            "setup", "error", "typo", "css", "html", "syntax", "what is"
+        ]
+        
+        advanced_hits = sum(1 for kw in advanced_keywords if kw in content)
+        beginner_hits = sum(1 for kw in beginner_keywords if kw in content)
+        
+        # Tag based boosts
+        advanced_tags = ["c++", "cpp", "rust", "go", "golang", "kubernetes", "k8s", "docker", "aws", "gcp"]
+        if any(tag in advanced_tags for tag in tags):
+            advanced_hits += 2
+            
+        if advanced_hits >= 2:
+            return 3 # Advanced
+        elif beginner_hits >= 2 and advanced_hits == 0:
+            return 1 # Beginner
+        else:
+            return 2 # Intermediate
 
     def _basic_clean(self, text: str) -> str:
         """Removes HTML noise and normalizes whitespace while preserving content."""

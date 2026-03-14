@@ -26,8 +26,8 @@ const mapItemToProblem = (item: any): Problem => ({
   techStack: item.suggested_tech ?
     (Array.isArray(item.suggested_tech) ? item.suggested_tech : [item.suggested_tech])
     : [],
-  difficulty: item.difficulty === 'Beginner' ? Difficulty.BEGINNER :
-    item.difficulty === 'Advanced' ? Difficulty.ADVANCED :
+  difficulty: item.difficulty_level === 1 ? Difficulty.BEGINNER :
+    item.difficulty_level === 3 ? Difficulty.ADVANCED :
       Difficulty.INTERMEDIATE,
   estimatedEffort: 'Unknown',
   source: (item.source || '').includes('github') ? Source.GITHUB :
@@ -39,7 +39,8 @@ const mapItemToProblem = (item: any): Problem => ({
   solutionType: SolutionType.SOFTWARE,
   interestedCount: item.interested_count || 0,
   isInterested: item.is_interested || false,
-  collaboratorsCount: 0,
+  collaboratorsCount: item.collaborators_count || 0,
+  squadStatus: item.squad_status || 'none',
   createdAt: item.scraped_at || new Date().toISOString(),
   engineeringImpactScore: item.engineering_impact_score,
   technicalDepthScore: item.technical_depth_score,
@@ -157,6 +158,24 @@ export const apiService = {
     }
   },
 
+  getUserSquads: async (): Promise<Problem[]> => {
+    const token = localStorage.getItem('token');
+    if (!token) return [];
+
+    try {
+      const data = await fetch(`${API_BASE_URL}/me/squads`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }).then(handleResponse);
+
+      return data.map(mapItemToProblem);
+    } catch (error) {
+      console.error("Failed to fetch user squads:", error);
+      return [];
+    }
+  },
+
   requestCollaboration: async (problemId: string): Promise<boolean> => {
     const token = localStorage.getItem('token');
     if (!token) return false;
@@ -175,6 +194,62 @@ export const apiService = {
     } catch (error) {
       console.error("Failed to request collaboration:", error);
       return false;
+    }
+  },
+
+  acceptCollaboration: async (problemId: string): Promise<boolean> => {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+
+    try {
+      await fetch(`${API_BASE_URL}/collaborate/accept`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ problem_id: parseInt(problemId) })
+      }).then(handleResponse);
+      return true;
+    } catch (error) {
+      console.error("Failed to accept collaboration:", error);
+      return false;
+    }
+  },
+
+  rejectCollaboration: async (problemId: string): Promise<boolean> => {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+
+    try {
+      await fetch(`${API_BASE_URL}/collaborate/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ problem_id: parseInt(problemId) })
+      }).then(handleResponse);
+      return true;
+    } catch (error) {
+      console.error("Failed to reject collaboration:", error);
+      return false;
+    }
+  },
+
+  getCollaborationStatus: async (problemId: string): Promise<any> => {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+
+    try {
+      return await fetch(`${API_BASE_URL}/collaborate/${problemId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }).then(handleResponse);
+    } catch (error) {
+      console.error("Failed to get collaboration status:", error);
+      return null;
     }
   },
 
@@ -265,6 +340,70 @@ export const apiService = {
     } catch (error) {
       console.error("Failed to generate prototype plan", error);
       return null;
+    }
+  },
+
+  // ---- Squad System ----
+
+  getSquads: async (): Promise<any[]> => {
+    try {
+      const data = await fetch(`${API_BASE_URL}/squads`).then(handleResponse);
+      return data;
+    } catch (error) {
+      console.error("Failed to fetch squads:", error);
+      return [];
+    }
+  },
+
+  createSquad: async (problemId: number, name: string, description: string): Promise<any> => {
+    const token = localStorage.getItem('token');
+    return await fetch(`${API_BASE_URL}/squads`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ problem_id: problemId, name, description })
+    }).then(handleResponse);
+  },
+
+  joinSquad: async (squadId: number): Promise<any> => {
+    const token = localStorage.getItem('token');
+    return await fetch(`${API_BASE_URL}/squads/${squadId}/join`, {
+      method: 'POST',
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+    }).then(handleResponse);
+  },
+
+  acceptSquadMember: async (squadId: number, userId: number): Promise<any> => {
+    const token = localStorage.getItem('token');
+    return await fetch(`${API_BASE_URL}/squads/${squadId}/accept/${userId}`, {
+      method: 'POST',
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+    }).then(handleResponse);
+  },
+
+  rejectSquadMember: async (squadId: number, userId: number): Promise<any> => {
+    const token = localStorage.getItem('token');
+    return await fetch(`${API_BASE_URL}/squads/${squadId}/reject/${userId}`, {
+      method: 'POST',
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+    }).then(handleResponse);
+  },
+
+  getSquadDetail: async (squadId: number): Promise<any> => {
+    const token = localStorage.getItem('token');
+    return await fetch(`${API_BASE_URL}/squads/${squadId}`, {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+    }).then(handleResponse);
+  },
+
+  getSquadMessages: async (squadId: number): Promise<any[]> => {
+    const token = localStorage.getItem('token');
+    try {
+      const data = await fetch(`${API_BASE_URL}/squads/${squadId}/messages?limit=100`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      }).then(handleResponse);
+      return data;
+    } catch {
+      return [];
     }
   }
 };

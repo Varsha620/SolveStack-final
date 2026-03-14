@@ -100,6 +100,10 @@ class ProblemResponse(ProblemBase):
     industry_impact_score: Optional[float] = 0.0
     cognitive_complexity_score: Optional[float] = 0.0
     signal_quality_score: Optional[float] = 0.0
+    
+    # Collaboration Info
+    collaborators_count: int = 0
+    squad_status: Optional[str] = "none" # pending/accepted/rejected/none
 
     class Config:
         from_attributes = True

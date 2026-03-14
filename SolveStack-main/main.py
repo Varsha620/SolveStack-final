@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 import os
 load_dotenv()
 
-from fastapi import FastAPI, Depends, HTTPException, status, Header
+from fastapi import FastAPI, Depends, HTTPException, status, Header, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -10,7 +10,7 @@ from typing import List, Optional, Dict, Any
 import os
 from dotenv import load_dotenv
 
-from models import User, Problem, CollaborationGroup, CollaborationRequest, Base, group_members
+from models import User, Problem, CollaborationGroup, CollaborationRequest, SquadJoinRequest, SquadMessage, Base, group_members
 from database import engine, get_db
 from schemas import (
     UserCreate, UserResponse, Token,
@@ -455,7 +455,10 @@ def _map_problem_to_response(problem: Problem, current_user: Optional[User] = No
         "industry_impact_score": problem.industry_impact_score or 0.0,
         "cognitive_complexity_score": problem.cognitive_complexity_score or 0.0,
         "signal_quality_score": problem.signal_quality_score or 0.0,
-        "engineering_impact_score": problem.engineering_impact_score or 0.0
+        "engineering_impact_score": problem.engineering_impact_score or 0.0,
+        # Collaboration Info
+        "collaborators_count": sum(len(g.members) for g in problem.collaboration_groups if g.is_active),
+        "squad_status": next((req.status for req in current_user.collaboration_requests if req.problem_id == problem.ps_id), "none") if current_user else "none"
     }
 
 @app.get("/problems", response_model=List[ProblemResponse], tags=["Problems"])
@@ -494,7 +497,7 @@ def get_problems(
     if source:
         query = query.filter(Problem.source.contains(source))
     
-    problems = query.order_by(Problem.scraped_at.desc()).offset(skip).limit(limit).all()
+    problems = query.order_by(Problem.engineering_impact_score.desc(), Problem.scraped_at.desc()).offset(skip).limit(limit).all()
     
     return [_map_problem_to_response(p, current_user) for p in problems]
 
@@ -1055,6 +1058,19 @@ def get_user_interests(
     
     return result
 
+@app.get("/me/squads", response_model=List[ProblemResponse], tags=["Authentication"])
+def get_user_squads(
+    current_user: User = Depends(get_current_user)
+):
+    """Get the list of problems the current user is collaborating on"""
+    result = []
+    # Only return problems where the request is 'accepted'
+    for req in current_user.collaboration_requests:
+        if req.status == "accepted":
+            result.append(_map_problem_to_response(req.problem, current_user))
+    
+    return result
+
 
 # ============ Collaboration Endpoints (Phase 2B) ============
 
@@ -1148,12 +1164,14 @@ def request_collaboration(
             detail="Problem not found"
         )
     
-    # Check if user has marked interest
+    # Auto-mark interest if not already done
     if current_user not in problem.interested_users:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You must mark interest in this problem before requesting collaboration"
-        )
+        from models import problem_interests
+        from sqlalchemy import insert
+        db.execute(insert(problem_interests).values(user_id=current_user.id, problem_id=problem.ps_id))
+        db.commit()
+        db.refresh(problem)
+        print(f"AUTO-INTEREST: User {current_user.id} -> Problem {problem.ps_id}")
     
     # Check for existing request (will also be caught by unique constraint)
     existing = db.query(CollaborationRequest).filter(
@@ -1359,14 +1377,12 @@ def get_collaboration_status(
     ).first()
     
     # Determine if user can request collaboration
-    can_request = current_user in problem.interested_users and user_request is None
+    # Now simplified: can request if they don't already have one
+    can_request = user_request is None
     reason = None
     
     if not can_request:
-        if current_user not in problem.interested_users:
-            reason = "You must mark interest in this problem first"
-        elif user_request:
-            reason = f"You already have a request (status: {user_request.status})"
+        reason = f"You already have a request (status: {user_request.status})"
     
     # Build response
     response = {
@@ -1399,6 +1415,336 @@ def get_collaboration_status(
 
 
 
+# ============ Squad System (New) ============
+
+from typing import DefaultDict
+from collections import defaultdict
+
+class ConnectionManager:
+    """Manages active WebSocket connections per squad."""
+    def __init__(self):
+        self.active: DefaultDict[int, list] = defaultdict(list)  # squad_id -> list of WebSocket
+
+    async def connect(self, squad_id: int, websocket: WebSocket):
+        await websocket.accept()
+        self.active[squad_id].append(websocket)
+
+    def disconnect(self, squad_id: int, websocket: WebSocket):
+        self.active[squad_id].remove(websocket)
+
+    async def broadcast(self, squad_id: int, message: dict):
+        import json
+        for ws in list(self.active[squad_id]):
+            try:
+                await ws.send_text(json.dumps(message))
+            except Exception:
+                self.disconnect(squad_id, ws)
+
+ws_manager = ConnectionManager()
+
+
+def _squad_member_ids(squad: CollaborationGroup) -> set:
+    return {m.id for m in squad.members}
+
+
+@app.get("/squads", tags=["Squads"])
+def list_squads(db: Session = Depends(get_db)):
+    """List all public squads with description, member count, and problem title."""
+    squads = db.query(CollaborationGroup).filter(CollaborationGroup.is_active == True).all()
+    result = []
+    for sq in squads:
+        pending_count = sum(1 for r in sq.join_requests if r.status == 'pending')
+        result.append({
+            "id": sq.id,
+            "name": sq.name or f"Squad #{sq.id}",
+            "description": sq.description or "",
+            "problem_id": sq.problem_id,
+            "problem_title": sq.problem.title if sq.problem else "",
+            "leader_id": sq.leader_id,
+            "leader_username": sq.leader.username if sq.leader else "Unknown",
+            "member_count": len(sq.members),
+            "pending_requests": pending_count,
+            "created_at": sq.created_at,
+        })
+    return result
+
+
+@app.post("/squads", tags=["Squads"])
+def create_squad(
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new squad. The caller becomes the leader and is added as the first member.
+    Required fields: problem_id (int), name (str), description (str)
+    """
+    problem_id = payload.get("problem_id")
+    name = payload.get("name", "").strip()
+    description = payload.get("description", "").strip()
+
+    if not problem_id or not name:
+        raise HTTPException(status_code=400, detail="problem_id and name are required")
+
+    problem = db.query(Problem).filter(Problem.ps_id == problem_id).first()
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found")
+
+    squad = CollaborationGroup(
+        problem_id=problem_id,
+        name=name,
+        description=description,
+        leader_id=current_user.id,
+        is_active=True,
+    )
+    squad.members.append(current_user)
+    db.add(squad)
+    db.commit()
+    db.refresh(squad)
+
+    return {
+        "id": squad.id,
+        "name": squad.name,
+        "description": squad.description,
+        "problem_id": squad.problem_id,
+        "leader_id": squad.leader_id,
+        "message": "Squad created! Share it with others."
+    }
+
+
+@app.get("/squads/{squad_id}", tags=["Squads"])
+def get_squad(
+    squad_id: int,
+    db: Session = Depends(get_db),
+    authorization: Optional[str] = Header(None)
+):
+    """Get squad details. Members list is only visible to accepted members."""
+    squad = db.query(CollaborationGroup).filter(CollaborationGroup.id == squad_id).first()
+    if not squad:
+        raise HTTPException(status_code=404, detail="Squad not found")
+
+    current_user = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+        try:
+            from auth import verify_token
+            email = verify_token(token)
+            current_user = db.query(User).filter(User.email == email).first()
+        except:
+            pass
+
+    is_member = current_user and current_user.id in _squad_member_ids(squad)
+    is_leader = current_user and current_user.id == squad.leader_id
+
+    user_request = None
+    pending_requests = []
+    if current_user:
+        user_request = db.query(SquadJoinRequest).filter(
+            SquadJoinRequest.squad_id == squad_id,
+            SquadJoinRequest.user_id == current_user.id
+        ).first()
+
+    if is_leader:
+        pending_requests = [
+            {"request_id": r.id, "user_id": r.user_id, "username": r.user.username, "created_at": r.created_at}
+            for r in squad.join_requests if r.status == 'pending'
+        ]
+
+    return {
+        "id": squad.id,
+        "name": squad.name or f"Squad #{squad.id}",
+        "description": squad.description or "",
+        "problem_id": squad.problem_id,
+        "problem_title": squad.problem.title if squad.problem else "",
+        "leader_id": squad.leader_id,
+        "leader_username": squad.leader.username if squad.leader else "Unknown",
+        "member_count": len(squad.members),
+        "members": [{"id": m.id, "username": m.username} for m in squad.members] if is_member else [],
+        "is_member": is_member,
+        "is_leader": is_leader,
+        "user_request_status": user_request.status if user_request else None,
+        "pending_requests": pending_requests,
+        "created_at": squad.created_at,
+    }
+
+
+@app.post("/squads/{squad_id}/join", tags=["Squads"])
+def join_squad(
+    squad_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Request to join a squad."""
+    squad = db.query(CollaborationGroup).filter(CollaborationGroup.id == squad_id, CollaborationGroup.is_active == True).first()
+    if not squad:
+        raise HTTPException(status_code=404, detail="Squad not found")
+
+    if current_user.id in _squad_member_ids(squad):
+        raise HTTPException(status_code=400, detail="You are already a member of this squad")
+
+    existing = db.query(SquadJoinRequest).filter(
+        SquadJoinRequest.squad_id == squad_id,
+        SquadJoinRequest.user_id == current_user.id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail=f"You already have a join request (status: {existing.status})")
+
+    join_req = SquadJoinRequest(squad_id=squad_id, user_id=current_user.id, status='pending')
+    db.add(join_req)
+    db.commit()
+    return {"message": "Join request sent! The squad leader will review it.", "status": "pending"}
+
+
+@app.post("/squads/{squad_id}/accept/{user_id}", tags=["Squads"])
+def accept_squad_member(
+    squad_id: int,
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Squad leader accepts a join request."""
+    squad = db.query(CollaborationGroup).filter(CollaborationGroup.id == squad_id).first()
+    if not squad or squad.leader_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the squad leader can accept members")
+
+    join_req = db.query(SquadJoinRequest).filter(
+        SquadJoinRequest.squad_id == squad_id,
+        SquadJoinRequest.user_id == user_id
+    ).first()
+    if not join_req:
+        raise HTTPException(status_code=404, detail="Join request not found")
+
+    join_req.status = 'accepted'
+    new_member = db.query(User).filter(User.id == user_id).first()
+    if new_member and new_member not in squad.members:
+        squad.members.append(new_member)
+    db.commit()
+    return {"message": f"{new_member.username} has been accepted into the squad!", "member_count": len(squad.members)}
+
+
+@app.post("/squads/{squad_id}/reject/{user_id}", tags=["Squads"])
+def reject_squad_member(
+    squad_id: int,
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Squad leader rejects a join request."""
+    squad = db.query(CollaborationGroup).filter(CollaborationGroup.id == squad_id).first()
+    if not squad or squad.leader_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the squad leader can reject members")
+
+    join_req = db.query(SquadJoinRequest).filter(
+        SquadJoinRequest.squad_id == squad_id,
+        SquadJoinRequest.user_id == user_id
+    ).first()
+    if not join_req:
+        raise HTTPException(status_code=404, detail="Join request not found")
+
+    join_req.status = 'rejected'
+    db.commit()
+    return {"message": "Join request rejected."}
+
+
+@app.get("/squads/{squad_id}/messages", tags=["Squads"])
+def get_squad_messages(
+    squad_id: int,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    authorization: Optional[str] = Header(None)
+):
+    """Fetch the most recent N chat messages for a squad (members only)."""
+    current_user = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+        try:
+            from auth import verify_token
+            email = verify_token(token)
+            current_user = db.query(User).filter(User.email == email).first()
+        except:
+            pass
+
+    squad = db.query(CollaborationGroup).filter(CollaborationGroup.id == squad_id).first()
+    if not squad:
+        raise HTTPException(status_code=404, detail="Squad not found")
+
+    if not current_user or current_user.id not in _squad_member_ids(squad):
+        raise HTTPException(status_code=403, detail="Only squad members can view messages")
+
+    messages = db.query(SquadMessage).filter(
+        SquadMessage.squad_id == squad_id
+    ).order_by(SquadMessage.sent_at.asc()).limit(limit).all()
+
+    return [
+        {
+            "id": m.id,
+            "sender_id": m.sender_id,
+            "sender_username": m.sender.username,
+            "content": m.content,
+            "sent_at": m.sent_at.isoformat()
+        } for m in messages
+    ]
+
+
+@app.websocket("/ws/squad/{squad_id}")
+async def squad_websocket(
+    websocket: WebSocket,
+    squad_id: int,
+    token: str = None,
+    db: Session = Depends(get_db)
+):
+    """
+    WebSocket endpoint for real-time squad chat.
+    Connect with: ws://localhost:8000/ws/squad/{squad_id}?token=<jwt>
+    Messages are persisted to DB and broadcast to all connected members.
+    """
+    import json
+    from auth import verify_token
+
+    # Authenticate via token query param
+    current_user = None
+    try:
+        email = verify_token(token)
+        current_user = db.query(User).filter(User.email == email).first()
+    except Exception:
+        await websocket.close(code=4001)
+        return
+
+    if not current_user:
+        await websocket.close(code=4001)
+        return
+
+    squad = db.query(CollaborationGroup).filter(CollaborationGroup.id == squad_id).first()
+    if not squad or current_user.id not in _squad_member_ids(squad):
+        await websocket.close(code=4003)
+        return
+
+    await ws_manager.connect(squad_id, websocket)
+    try:
+        while True:
+            raw = await websocket.receive_text()
+            data = json.loads(raw)
+            content = (data.get("content") or "").strip()
+            if not content:
+                continue
+
+            # Persist message
+            msg = SquadMessage(squad_id=squad_id, sender_id=current_user.id, content=content)
+            db.add(msg)
+            db.commit()
+            db.refresh(msg)
+
+            # Broadcast to all members in the squad
+            broadcast_payload = {
+                "id": msg.id,
+                "sender_id": current_user.id,
+                "sender_username": current_user.username,
+                "content": content,
+                "sent_at": msg.sent_at.isoformat()
+            }
+            await ws_manager.broadcast(squad_id, broadcast_payload)
+    except WebSocketDisconnect:
+        ws_manager.disconnect(squad_id, websocket)
 
 
 # ============ Debug Endpoints ============

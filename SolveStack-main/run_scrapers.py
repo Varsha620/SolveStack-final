@@ -22,6 +22,7 @@ from models import Base, Problem
 from scrapers import scrape_github, scrape_stackoverflow, scrape_hackernews
 from scrapers.reddit_scraper import scrape_reddit
 from sqlalchemy.exc import IntegrityError
+from engineering_scoring_engine import get_scoring_engine
 
 # Create tables if not exist
 Base.metadata.create_all(bind=engine)
@@ -46,6 +47,16 @@ def store_problems(problems, db):
                 reference_link=p['reference_link'],
                 tags=p.get('tags', p.get('raw_tags', []))
             )
+            
+            # Apply Engineering Impact Scoring
+            try:
+                scoring_engine = get_scoring_engine()
+                scores = scoring_engine.calculate_scores(new_prob)
+                for attr, val in scores.items():
+                    setattr(new_prob, attr, val)
+            except Exception as e:
+                print(f"Scoring error: {e}")
+                
             db.add(new_prob)
             db.commit()
             count += 1
