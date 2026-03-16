@@ -315,7 +315,7 @@ def get_shelf(
     
     # Sorting
     if sort_by == "impact":
-        query = query.order_by(Problem.engineering_impact_score.desc())
+        query = query.order_by(Problem.scraped_at.desc())
     elif sort_by == "depth":
         query = query.order_by(Problem.technical_depth_score.desc())
     else:
@@ -391,7 +391,7 @@ def get_shelf_analytics(db: Session = Depends(get_db)):
     avg_impact = db.query(func.avg(Problem.engineering_impact_score)).scalar()
     low_signal = db.query(Problem).filter(Problem.signal_quality_score < 0.4).count()
     
-    top_5 = db.query(Problem).order_by(Problem.engineering_impact_score.desc()).limit(5).all()
+    top_5 = db.query(Problem).order_by(Problem.scraped_at.desc()).limit(5).all()
     
     # Distribution
     distribution = []
@@ -489,17 +489,22 @@ def get_problems(
         except:
             pass # Invalid token, treat as guest
 
-    query = db.query(Problem)
-    
-    # Apply filters
-    if tech:
-        query = query.filter(Problem.suggested_tech.contains(tech))
-    if source:
-        query = query.filter(Problem.source.contains(source))
-    
-    problems = query.order_by(Problem.engineering_impact_score.desc(), Problem.scraped_at.desc()).offset(skip).limit(limit).all()
-    
-    return [_map_problem_to_response(p, current_user) for p in problems]
+    try:
+        query = db.query(Problem)
+        
+        # Apply filters
+        if tech:
+            query = query.filter(Problem.suggested_tech.contains(tech))
+        if source:
+            query = query.filter(Problem.source.contains(source))
+        
+        problems = query.order_by(Problem.scraped_at.desc()).offset(skip).limit(limit).all()
+        
+        return [_map_problem_to_response(p, current_user) for p in problems]
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/problems/trending", response_model=List[ProblemResponse], tags=["Problems"])
@@ -599,42 +604,65 @@ def trigger_scrape(
     github_count = 0
     
     try:
+        # Define quick_store helper once
+        def quick_store(problems):
+            from embedding_service import get_embedding_service
+            from engineering_scoring_engine import get_scoring_engine
+            
+            embedding_service = get_embedding_service()
+            scoring_engine = get_scoring_engine()
+            
+            count = 0
+            cleaner = DataCleaner()
+            for p_raw in problems:
+                try:
+                    # 1. Clean and enrich
+                    p_data = cleaner.clean_problem(p_raw)
+                    
+                    # 2. Check for duplicate link
+                    existing = db.query(Problem).filter(
+                        Problem.reference_link == p_data['reference_link']
+                    ).first()
+                    if existing: continue
+                    
+                    # 3. Check for duplicate hash
+                    existing_hash = db.query(Problem).filter(
+                        Problem.title_hash == p_data['title_hash']
+                    ).first()
+                    if existing_hash: continue
+
+                    # 4. Generate Semantic Embeddings on the fly
+                    try:
+                        emb = embedding_service.generate_embedding(
+                            title=p_data.get('title', ''),
+                            description=p_data.get('description', ''),
+                            tags=p_data.get('tags', [])
+                        )
+                        if emb:
+                            p_data['embedding'] = emb
+                    except Exception as emb_e:
+                        print(f"Embedding error during quick store: {emb_e}")
+
+                    # 5. Calculate Engineering Impact Score (EIS)
+                    try:
+                        temp_problem = Problem(**p_data)
+                        scores = scoring_engine.calculate_scores(temp_problem)
+                        p_data.update(scores)
+                    except Exception as score_err:
+                        print(f"Scoring error during quick store: {score_err}")
+
+                    new_p = Problem(**p_data)
+                    db.add(new_p)
+                    db.commit()
+                    count += 1
+                except Exception as e:
+                    print(f"Quick store error: {e}")
+                    db.rollback()
+                    continue
+            return count
+
         if "reddit" in request.platforms:
             reddit_problems = scrape_reddit(limit=request.limit)
-            # Use local helper or store_problems_in_db logic
-            # For simplicity, similar to scrape_all_sources
-            
-            # Since trigger_scrape is simpler and older, we'll keep it simple but correct references
-            def quick_store(problems):
-                count = 0
-                cleaner = DataCleaner()
-                for p_raw in problems:
-                    try:
-                        # 1. Clean and enrich
-                        p_data = cleaner.clean_problem(p_raw)
-                        
-                        # 2. Check for duplicate link
-                        existing = db.query(Problem).filter(
-                            Problem.reference_link == p_data['reference_link']
-                        ).first()
-                        if existing: continue
-                        
-                        # 3. Check for duplicate hash
-                        existing_hash = db.query(Problem).filter(
-                            Problem.title_hash == p_data['title_hash']
-                        ).first()
-                        if existing_hash: continue
-
-                        new_p = Problem(**p_data)
-                        db.add(new_p)
-                        db.commit()
-                        count += 1
-                    except Exception as e:
-                        print(f"Quick store error: {e}")
-                        db.rollback()
-                        continue
-                return count
-
             reddit_count = quick_store(reddit_problems)
         
         if "github" in request.platforms:
@@ -710,6 +738,10 @@ def scrape_all_sources(db: Session = Depends(get_db)):
         return False
 
     def insert_problems(problems_raw, source_key):
+        from embedding_service import get_embedding_service
+        from engineering_scoring_engine import get_scoring_engine
+        embedding_service = get_embedding_service()
+        
         inserted_problems = []
         deduped = 0
         nonlocal total_cleaned, records_with_code
@@ -728,6 +760,19 @@ def scrape_all_sources(db: Session = Depends(get_db)):
                     continue
                 
                 # 3. Insert and Score
+                
+                # Apply Semantic Embeddings on the fly
+                try:
+                    emb = embedding_service.generate_embedding(
+                        title=cleaned_p.get('title', ''),
+                        description=cleaned_p.get('description', ''),
+                        tags=cleaned_p.get('tags', [])
+                    )
+                    if emb:
+                        cleaned_p['embedding'] = emb
+                except Exception as emb_e:
+                    print(f"Embedding error during insert_problems: {emb_e}")
+
                 new_problem = Problem(**cleaned_p)
                 
                 # Apply Engineering Impact Scoring
@@ -1684,6 +1729,58 @@ def get_squad_messages(
             "sent_at": m.sent_at.isoformat()
         } for m in messages
     ]
+
+
+@app.delete("/squads/{squad_id}", tags=["Squads"])
+def delete_squad(
+    squad_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Squad leader deletes a squad."""
+    squad = db.query(CollaborationGroup).filter(CollaborationGroup.id == squad_id).first()
+    if not squad:
+        raise HTTPException(status_code=404, detail="Squad not found")
+    if squad.leader_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the squad leader can delete this squad")
+
+    # Mark as inactive instead of hard deleting to preserve referential integrity if needed,
+    # or hard delete. Since we have messages and join requests, let's hard delete them first or cascade.
+    db.query(SquadMessage).filter(SquadMessage.squad_id == squad_id).delete()
+    db.query(SquadJoinRequest).filter(SquadJoinRequest.squad_id == squad_id).delete()
+    db.delete(squad)
+    db.commit()
+    return {"message": "Squad deleted successfully."}
+
+
+@app.post("/squads/{squad_id}/leave", tags=["Squads"])
+def leave_squad(
+    squad_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Member leaves a squad."""
+    squad = db.query(CollaborationGroup).filter(CollaborationGroup.id == squad_id, CollaborationGroup.is_active == True).first()
+    if not squad:
+        raise HTTPException(status_code=404, detail="Squad not found")
+
+    if squad.leader_id == current_user.id:
+        raise HTTPException(status_code=400, detail="The leader cannot leave the squad. You must delete it.")
+
+    if current_user not in squad.members:
+        raise HTTPException(status_code=400, detail="You are not a member of this squad")
+
+    # Remove user from group
+    squad.members.remove(current_user)
+    
+    # Also clean up their join request if it exists
+    db.query(SquadJoinRequest).filter(
+        SquadJoinRequest.squad_id == squad_id,
+        SquadJoinRequest.user_id == current_user.id
+    ).delete()
+
+    db.commit()
+    return {"message": "You have left the squad."}
 
 
 @app.websocket("/ws/squad/{squad_id}")

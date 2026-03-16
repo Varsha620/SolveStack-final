@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import {
   Users, ArrowLeft, Plus, MessageSquare, Loader2, Check, X,
-  Crown, Clock, ChevronRight, Search, Zap, Send
+  Crown, Clock, ChevronRight, Search, Zap, Send, Trash2, LogOut
 } from 'lucide-react';
 
 interface Squad {
@@ -52,7 +52,7 @@ const Squads: React.FC = () => {
         const enriched = await Promise.all(data.map(async (sq: Squad) => {
           try {
             const detail = await apiService.getSquadDetail(sq.id);
-            return { ...sq, user_request_status: detail.user_request_status, pending_requests: detail.pending_requests?.length ?? sq.pending_requests, is_leader: detail.is_leader, is_member: detail.is_member };
+            return { ...sq, user_request_status: detail.user_request_status, pending_requests: detail.pending_requests ?? sq.pending_requests, is_leader: detail.is_leader, is_member: detail.is_member };
           } catch { return sq; }
         }));
         setSquads(enriched as any);
@@ -109,6 +109,7 @@ const Squads: React.FC = () => {
     }
   };
 
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!createForm.problem_id || !createForm.name.trim()) return;
@@ -130,6 +131,34 @@ const Squads: React.FC = () => {
     }
   };
 
+  const handleDelete = async (squadId: number) => {
+    if (!window.confirm("Are you sure you want to delete this squad? This action cannot be undone and all chat history will be lost.")) return;
+    const key = `delete-${squadId}`;
+    setActionLoading(prev => ({ ...prev, [key]: true }));
+    try {
+      await apiService.deleteSquad(squadId);
+      await fetchSquads();
+    } catch (e: any) {
+      alert(e.message || 'Failed to delete squad');
+    } finally {
+      setActionLoading(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const handleLeave = async (squadId: number) => {
+    if (!window.confirm("Are you sure you want to leave this squad?")) return;
+    const key = `leave-${squadId}`;
+    setActionLoading(prev => ({ ...prev, [key]: true }));
+    try {
+      await apiService.leaveSquad(squadId);
+      await fetchSquads();
+    } catch (e: any) {
+      alert(e.message || 'Failed to leave squad');
+    } finally {
+      setActionLoading(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
   const filtered = squads.filter(sq =>
     sq.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     sq.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -137,15 +166,44 @@ const Squads: React.FC = () => {
   );
 
   const getStatusButton = (sq: any) => {
+    if (sq.is_leader) {
+      return (
+        <div className="flex gap-2">
+          <Link
+            to={`/squads/${sq.id}/chat`}
+            className="flex items-center gap-2 px-4 py-2 bg-cyan-500 text-black font-bold text-xs rounded-xl hover:bg-cyan-400 transition-all"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            Open Chat
+          </Link>
+          <button 
+            onClick={() => handleDelete(sq.id)}
+            className="p-2 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl hover:bg-red-500/20"
+            title="Delete Squad"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      );
+    }
     if (sq.is_member || sq.user_request_status === 'accepted') {
       return (
-        <Link
-          to={`/squads/${sq.id}/chat`}
-          className="flex items-center gap-2 px-4 py-2 bg-cyan-500 text-black font-bold text-xs rounded-xl hover:bg-cyan-400 transition-all"
-        >
-          <MessageSquare className="w-3.5 h-3.5" />
-          Open Chat
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            to={`/squads/${sq.id}/chat`}
+            className="flex items-center gap-2 px-4 py-2 bg-cyan-500 text-black font-bold text-xs rounded-xl hover:bg-cyan-400 transition-all"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            Open Chat
+          </Link>
+          <button 
+            onClick={() => handleLeave(sq.id)}
+            className="p-2 bg-white/5 text-white/50 border border-white/10 rounded-xl hover:bg-white/10 hover:text-white"
+            title="Leave Squad"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
       );
     }
     if (sq.user_request_status === 'pending') {
@@ -310,8 +368,27 @@ const Squads: React.FC = () => {
                     </h3>
                     <p className="text-sm text-white/50 leading-relaxed line-clamp-2">{sq.description || 'No description provided.'}</p>
                   </div>
-                  <div className="flex-shrink-0">
+                  <div className="flex-shrink-0 flex items-center gap-2">
                     {getStatusButton(sq as any)}
+                    {(sq as any).is_leader ? (
+                      <button
+                        onClick={() => handleDelete(sq.id)}
+                        disabled={actionLoading[`delete-${sq.id}`]}
+                        className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-xl transition-colors disabled:opacity-50"
+                        title="Delete Squad"
+                      >
+                        {actionLoading[`delete-${sq.id}`] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                      </button>
+                    ) : (sq as any).is_member ? (
+                      <button
+                        onClick={() => handleLeave(sq.id)}
+                        disabled={actionLoading[`leave-${sq.id}`]}
+                        className="p-2 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white rounded-xl transition-colors disabled:opacity-50"
+                        title="Leave Squad"
+                      >
+                        {actionLoading[`leave-${sq.id}`] ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
 

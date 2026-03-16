@@ -35,10 +35,13 @@ if DATABASE_URL.startswith("postgresql"):
     )
 else:
     # Development: SQLite
-    print(f"[DB] Using SQLite: {DATABASE_URL}")
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    sqlite_path = os.path.join(base_dir, "solvestack.db")
+    db_url = f"sqlite:///{sqlite_path}"
+    print(f"[DB] Using SQLite: {db_url}")
     engine = create_engine(
-        DATABASE_URL,
-        connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
+        db_url,
+        connect_args={"check_same_thread": False},
         echo=False
     )
 

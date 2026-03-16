@@ -14,7 +14,9 @@ class EngineeringImpactScoringEngine:
         "cicd", "ci/cd", "kubernetes", "k8s", "docker", "microservices",
         "architecture", "performance", "throughput", "latency", "bottleneck",
         "refactor", "system design", "scalability", "caching", "db", "database",
-        "indexing", "concurrency", "parallelism", "asynchronous", "async"
+        "indexing", "concurrency", "parallelism", "asynchronous", "async",
+        "react", "hooks", "state management", "redux", "vue", "nextjs", "ssr",
+        "hydration", "virtual dom", "reconciliation", "memory leak", "race condition"
     ]
     
     # 2. Industry Impact Keywords
@@ -22,14 +24,16 @@ class EngineeringImpactScoringEngine:
         "production", "business", "downtime", "failure", "outage", "security",
         "vulnerability", "risk", "customer", "user", "revenue", "cost",
         "deployment", "cloud", "aws", "gcp", "azure", "infrastructure",
-        "terraform", "ansible", "monitoring", "alerting", "incident", "sla", "slo"
+        "terraform", "ansible", "monitoring", "alerting", "incident", "sla", "slo",
+        "authentication", "authorization", "jwt", "tls", "cors", "compliance"
     ]
     
     # 3. Cognitive Complexity Markers
     COMPLEXITY_PHRASES = [
         "trade-off", "tradeoff", "pros and cons", "pros/cons", "is it safe",
         "should we", "comparison", "alternative", "design choice", "approach",
-        "best practice", "strategy", "pattern", "decision", "evaluation"
+        "best practice", "strategy", "pattern", "decision", "evaluation",
+        "consistency", "availability", "partition tolerance", "idempotency"
     ]
     
     # 4. Signal Quality Penalties (Emotional Tone without Technical Density)

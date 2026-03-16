@@ -117,9 +117,9 @@ class DataCleaner:
         if any(tag in advanced_tags for tag in tags):
             advanced_hits += 2
             
-        if advanced_hits >= 2:
+        if advanced_hits >= 1:
             return 3 # Advanced
-        elif beginner_hits >= 2 and advanced_hits == 0:
+        elif beginner_hits >= 1 and advanced_hits == 0:
             return 1 # Beginner
         else:
             return 2 # Intermediate
@@ -148,13 +148,13 @@ class DataCleaner:
         if not title:
             return ""
             
-        title = title.lower()
+        title = str(title).lower()
         
         # Remove common prefixes (case-insensitive due to .lower() above)
         prefixes = [
             r'^ask hn:', r'^show hn:', r'^poll:', 
             r'^github issue:', r'^problem:', r'^issue:',
-            r'^question:', r'^help:'
+            r'^question:', r'^help:', r'^urgent:', r'^psa:'
         ]
         for pattern in prefixes:
             title = re.sub(pattern, '', title).strip()
@@ -168,7 +168,7 @@ class DataCleaner:
             
         normalized = set()
         for tag in tags:
-            if not tag: continue
+            if not tag or not isinstance(tag, str): continue
             
             # Basic cleanup
             tag = tag.lower().strip().replace(' ', '-')

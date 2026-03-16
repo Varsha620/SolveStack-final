@@ -1,7 +1,7 @@
 
 import { Problem, Difficulty, Source, SolutionType, User } from '../types';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'http://localhost:8001';
 
 // Helper to handle response errors
 const handleResponse = async (response: Response) => {
@@ -23,11 +23,10 @@ const mapItemToProblem = (item: any): Problem => ({
   title: item.title,
   description: item.description,
   humanExplanation: item.humanized_explanation || item.description,
-  techStack: item.suggested_tech ?
-    (Array.isArray(item.suggested_tech) ? item.suggested_tech : [item.suggested_tech])
-    : [],
-  difficulty: item.difficulty_level === 1 ? Difficulty.BEGINNER :
-    item.difficulty_level === 3 ? Difficulty.ADVANCED :
+  techStack: item.tags ? (Array.isArray(item.tags) ? item.tags : [item.tags]) :
+    (item.suggested_tech ? (Array.isArray(item.suggested_tech) ? item.suggested_tech : item.suggested_tech.split(',').map((t: string) => t.trim())) : []),
+  difficulty: (item.engineering_impact_score || 0) < 40 ? Difficulty.BEGINNER :
+    (item.engineering_impact_score || 0) > 70 ? Difficulty.ADVANCED :
       Difficulty.INTERMEDIATE,
   estimatedEffort: 'Unknown',
   source: (item.source || '').includes('github') ? Source.GITHUB :
@@ -269,7 +268,7 @@ export const apiService = {
       email: data.email,
       skills: data.skills || [],
       interests: data.interests || [],
-      experienceLevel: data.experience_level || 'Intermediate',
+      experienceLevel: data.experience_level || (data.activity_score > 50 ? 'Advanced' : data.activity_score > 10 ? 'Intermediate' : 'Beginner'),
       activityScore: data.activity_score || 0,
       interestedCount: data.interested_count || 0,
       squadsCount: data.squads_count || 0,
@@ -391,6 +390,22 @@ export const apiService = {
   getSquadDetail: async (squadId: number): Promise<any> => {
     const token = localStorage.getItem('token');
     return await fetch(`${API_BASE_URL}/squads/${squadId}`, {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+    }).then(handleResponse);
+  },
+
+  deleteSquad: async (squadId: number): Promise<any> => {
+    const token = localStorage.getItem('token');
+    return await fetch(`${API_BASE_URL}/squads/${squadId}`, {
+      method: 'DELETE',
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+    }).then(handleResponse);
+  },
+
+  leaveSquad: async (squadId: number): Promise<any> => {
+    const token = localStorage.getItem('token');
+    return await fetch(`${API_BASE_URL}/squads/${squadId}/leave`, {
+      method: 'POST',
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
     }).then(handleResponse);
   },

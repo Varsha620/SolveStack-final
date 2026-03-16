@@ -91,15 +91,8 @@ const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
     }
   };
 
-  // Dynamically calculate difficulty if EIS is available
-  const displayDifficulty = React.useMemo(() => {
-    if (problem.engineeringImpactScore) {
-      if (problem.engineeringImpactScore > 75) return Difficulty.ADVANCED;
-      if (problem.engineeringImpactScore > 40) return Difficulty.INTERMEDIATE;
-      return Difficulty.BEGINNER;
-    }
-    return problem.difficulty;
-  }, [problem.engineeringImpactScore, problem.difficulty]);
+  // Use the canonical difficulty from the backend to match the Dashboard filter
+  const displayDifficulty = problem.difficulty;
 
   return (
     <div className="group relative bg-[#090909] border border-white/5 rounded-xl p-5 hover:border-white/20 transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)]">

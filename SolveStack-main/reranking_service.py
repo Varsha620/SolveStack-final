@@ -101,10 +101,10 @@ class RerankingService:
             final_problems = []
             for row in results:
                 row_dict = dict(row._mapping)
-                score = float(row_dict.pop('final_overall_score', 0))
-                s_score = float(row_dict.pop('s_score', 0))
-                k_score = float(row_dict.pop('k_score', 0))
-                t_score = float(row_dict.pop('t_score', 0))
+                score = float(row_dict.pop('final_overall_score', 0) or 0.0)
+                s_score = float(row_dict.pop('s_score', 0) or 0.0)
+                k_score = float(row_dict.pop('k_score', 0) or 0.0)
+                t_score = float(row_dict.pop('t_score', 0) or 0.0)
                 
                 # Construct Problem object
                 problem = Problem(**{k: v for k, v in row_dict.items() if k in Problem.__table__.columns})

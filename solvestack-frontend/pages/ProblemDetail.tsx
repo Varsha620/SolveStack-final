@@ -15,7 +15,11 @@ import {
   Sparkles,
   Zap,
   Loader2,
-  BarChart3
+  BarChart3,
+  Plus,
+  Check,
+  Send,
+  X
 } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { useAuth } from '../contexts/AuthContext';
@@ -44,10 +48,13 @@ const ProblemDetail: React.FC = () => {
   const [explanationData, setExplanationData] = useState<any>(null);
   const [prototypeData, setPrototypeData] = useState<any>(null);
 
-  // Collaboration States
-  const [collabStatus, setCollabStatus] = useState<any>(null);
-  const [loadingCollab, setLoadingCollab] = useState(false);
-  const [squadMembers, setSquadMembers] = useState<string[]>([]);
+  // Squad System States
+  const [squads, setSquads] = useState<any[]>([]);
+  const [loadingSquads, setLoadingSquads] = useState(false);
+  const [showCreateSquad, setShowCreateSquad] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: '', description: '' });
+  const [creatingSquad, setCreatingSquad] = useState(false);
+  const [joiningId, setJoiningId] = useState<number | null>(null);
 
   useEffect(() => {
     const fetch = async () => {
@@ -63,24 +70,43 @@ const ProblemDetail: React.FC = () => {
     fetch();
   }, [id]);
 
-  useEffect(() => {
-    const fetchCollab = async () => {
-      if (!id || !isAuthenticated) return;
-      setLoadingCollab(true);
-      try {
-        const status = await apiService.getCollaborationStatus(id);
-        setCollabStatus(status);
-        if (status?.active_group) {
-          setSquadMembers(status.active_group.members || []);
-        }
-      } catch (error) {
-        console.error("Failed to fetch collaboration status", error);
-      } finally {
-        setLoadingCollab(false);
+  const fetchProblemSquads = React.useCallback(async () => {
+    if (!id) return;
+    setLoadingSquads(true);
+    try {
+      const data = await apiService.getSquads();
+      const numId = parseInt(id);
+      const filtered = data.filter((sq: any) => sq.problem_id === numId);
+      filtered.sort((a: any, b: any) => b.member_count - a.member_count);
+
+      const token = localStorage.getItem('token');
+      if (token && isAuthenticated) {
+        const enriched = await Promise.all(filtered.map(async (sq: any) => {
+          try {
+            const detail = await apiService.getSquadDetail(sq.id);
+            return {
+              ...sq,
+              user_request_status: detail.user_request_status,
+              pending_requests: detail.pending_requests?.length ?? sq.pending_requests,
+              is_leader: detail.is_leader,
+              is_member: detail.is_member
+            };
+          } catch { return sq; }
+        }));
+        setSquads(enriched);
+      } else {
+        setSquads(filtered);
       }
-    };
-    fetchCollab();
+    } catch (error) {
+      console.error("Failed to fetch squads", error);
+    } finally {
+      setLoadingSquads(false);
+    }
   }, [id, isAuthenticated]);
+
+  useEffect(() => {
+    fetchProblemSquads();
+  }, [fetchProblemSquads]);
 
   const handleToggleInterest = async () => {
     if (!isAuthenticated) {
@@ -113,77 +139,52 @@ const ProblemDetail: React.FC = () => {
     }
   };
 
-  const handleRequestCollaboration = async () => {
-    if (!isAuthenticated) {
-      alert("Please sign in to request collaboration");
-      return;
-    }
-    if (!problem || loadingCollab) return;
-
-    setLoadingCollab(true);
+  const handleJoinSquad = async (squadId: number) => {
+    if (!isAuthenticated) { alert("Please sign in to join squads"); return; }
+    setJoiningId(squadId);
     try {
-      const success = await apiService.requestCollaboration(problem.id);
-      if (success) {
-        // Refresh everything to ensure UI state (including Interest heart) is sync'd
-        const [newData, status] = await Promise.all([
-          apiService.getProblemById(problem.id),
-          apiService.getCollaborationStatus(problem.id)
-        ]);
-        if (newData) {
-          setProblem(newData);
-          setInterested(newData.isInterested || false);
-          setCount(newData.interestedCount || 0);
-        }
-        setCollabStatus(status);
-        refreshUser();
-        alert("Collaboration request sent! You can now start or join a squad.");
-      }
-    } catch (error) {
-      console.error("Failed to request collaboration", error);
+      await apiService.joinSquad(squadId);
+      await fetchProblemSquads();
+    } catch (e: any) {
+      alert(e.message || 'Failed to send join request');
     } finally {
-      setLoadingCollab(false);
+      setJoiningId(null);
     }
   };
 
-  const handleAcceptCollaboration = async () => {
-    if (!problem || loadingCollab) return;
-
-    setLoadingCollab(true);
+  const handleCreateSquad = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!problem || !createForm.name.trim()) return;
+    setCreatingSquad(true);
     try {
-      const success = await apiService.acceptCollaboration(problem.id);
-      if (success) {
-        const status = await apiService.getCollaborationStatus(problem.id);
-        setCollabStatus(status);
-        if (status?.active_group) {
-          setSquadMembers(status.active_group.members || []);
-        }
-        refreshUser();
-        alert("Squad joined successfully! You are now part of this collaboration group.");
-      }
-    } catch (error) {
-      console.error("Failed to accept collaboration", error);
+      await apiService.createSquad(problem.id, createForm.name.trim(), createForm.description.trim());
+      await fetchProblemSquads();
+      setShowCreateSquad(false);
+      setCreateForm({ name: '', description: '' });
+    } catch (e: any) {
+      alert(e.message || 'Failed to create squad');
     } finally {
-      setLoadingCollab(false);
+      setCreatingSquad(false);
     }
   };
 
-  const handleLeaveCollaboration = async () => {
-    if (!problem || loadingCollab) return;
-    if (!window.confirm("Are you sure you want to leave this collaboration?")) return;
-
-    setLoadingCollab(true);
+  const handleDeleteSquad = async (squadId: number) => {
+    if (!window.confirm("Are you sure you want to permanently delete this squad? This action cannot be undone.")) return;
     try {
-      const success = await apiService.rejectCollaboration(problem.id);
-      if (success) {
-        const status = await apiService.getCollaborationStatus(problem.id);
-        setCollabStatus(status);
-        setSquadMembers(status?.active_group?.members || []);
-        refreshUser();
-      }
-    } catch (error) {
-      console.error("Failed to leave collaboration", error);
-    } finally {
-      setLoadingCollab(false);
+      await apiService.deleteSquad(squadId);
+      await fetchProblemSquads();
+    } catch (e: any) {
+      alert(e.message || 'Failed to delete squad');
+    }
+  };
+
+  const handleLeaveSquad = async (squadId: number) => {
+    if (!window.confirm("Are you sure you want to leave this squad?")) return;
+    try {
+      await apiService.leaveSquad(squadId);
+      await fetchProblemSquads();
+    } catch (e: any) {
+      alert(e.message || 'Failed to leave squad');
     }
   };
 
@@ -241,32 +242,7 @@ const ProblemDetail: React.FC = () => {
                 <Heart className={`w-5 h-5 ${interested ? 'fill-current' : ''}`} />
               )}
             </button>
-            {collabStatus?.your_request?.status === 'accepted' ? (
-              <button
-                onClick={handleLeaveCollaboration}
-                disabled={loadingCollab}
-                className="px-5 py-2 bg-red-500/10 text-red-500 border border-red-500/20 font-bold text-sm rounded-full hover:bg-red-500/20 transition-all"
-              >
-                Leave Squad
-              </button>
-            ) : collabStatus?.your_request?.status === 'pending' ? (
-              <button
-                className="px-5 py-2 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 font-bold text-sm rounded-full cursor-default"
-              >
-                Request Pending
-              </button>
-            ) : (
-              <button
-                onClick={handleRequestCollaboration}
-                disabled={loadingCollab || !collabStatus?.can_request}
-                className={`px-5 py-2 font-bold text-sm rounded-full transition-all ${loadingCollab || !collabStatus?.can_request
-                  ? 'bg-white/5 text-white/20 border border-white/10 cursor-not-allowed'
-                  : 'bg-cyan-500 text-black hover:bg-cyan-400'
-                  }`}
-              >
-                {loadingCollab ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Request Collaboration'}
-              </button>
-            )}
+            {/* Removed top nav collab buttons as they are now handled below */}
           </div>
         </div>
       </nav>
@@ -374,19 +350,10 @@ const ProblemDetail: React.FC = () => {
                 </button>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-white/50 flex items-center gap-2">
-                    <Users className="w-4 h-4" /> Squad Members
+                    <Users className="w-4 h-4" /> Active Squads
                   </span>
-                  <span className="font-bold">{collabStatus?.active_group?.member_count || problem.collaboratorsCount || 0} / 5</span>
+                  <span className="font-bold">{squads.length}</span>
                 </div>
-                {squadMembers.length > 0 && (
-                  <div className="pt-2 flex flex-wrap gap-2">
-                    {squadMembers.map(member => (
-                      <span key={member} className="px-2 py-1 bg-white/5 rounded text-[10px] text-white/50 border border-white/5">
-                        @{member}
-                      </span>
-                    ))}
-                  </div>
-                )}
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-white/50 flex items-center gap-2">
                     <Layers className="w-4 h-4" /> Solution Type
@@ -412,43 +379,117 @@ const ProblemDetail: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-1 border border-white/5 rounded-2xl bg-gradient-to-t from-white/5 to-transparent overflow-hidden">
-              <div className="bg-[#090909] rounded-[14px] p-6 text-center">
-                <Zap className="w-8 h-8 text-yellow-500 mx-auto mb-4" />
-                <h4 className="font-bold mb-2">Build this Project</h4>
-                <p className="text-xs text-white/40 mb-6">
-                  {collabStatus?.your_request?.status === 'accepted'
-                    ? "You're an active member of this squad! Time to start building."
-                    : collabStatus?.your_request?.status === 'pending'
-                      ? "Your request is pending. If you're ready to commit now, you can finalize your entry."
-                      : "Ready to solve this? Request collaboration to find or start a squad."}
-                </p>
-                {collabStatus?.your_request?.status === 'pending' ? (
-                  <button
-                    onClick={handleAcceptCollaboration}
-                    disabled={loadingCollab}
-                    className="w-full py-3 bg-cyan-500 text-black font-bold rounded-xl hover:bg-cyan-400 transition-all flex items-center justify-center gap-2"
-                  >
-                    {loadingCollab ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    Confirm Entry
-                  </button>
-                ) : collabStatus?.your_request?.status === 'accepted' ? (
-                  <button
-                    className="w-full py-3 bg-white/5 text-white/40 border border-white/10 font-bold rounded-xl cursor-default"
-                  >
-                    Waiting for Squad
-                  </button>
+            <div className="p-6 rounded-2xl bg-[#090909] border border-white/5">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-white/30 flex items-center gap-2">
+                  <Users className="w-4 h-4" /> Problem Squads
+                </h3>
+                <button
+                  onClick={() => setShowCreateSquad(!showCreateSquad)}
+                  className="p-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-500 rounded-lg transition-colors border border-cyan-500/20"
+                  title="Create a new squad"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+
+              {showCreateSquad && (
+                <form onSubmit={handleCreateSquad} className="mb-6 p-4 border border-cyan-500/20 bg-cyan-500/5 rounded-xl">
+                  <h4 className="text-sm font-bold text-cyan-400 mb-3">Create New Squad</h4>
+                  <input
+                    type="text"
+                    placeholder="Squad Name"
+                    className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-white mb-3 focus:outline-none focus:border-cyan-500/50"
+                    value={createForm.name}
+                    onChange={e => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
+                    maxLength={50}
+                    required
+                  />
+                  <textarea
+                    placeholder="Squad Goals & Description"
+                    className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/50 resize-none h-20 mb-3"
+                    value={createForm.description}
+                    onChange={e => setCreateForm(prev => ({ ...prev, description: e.target.value }))}
+                    maxLength={500}
+                    required
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button type="button" onClick={() => setShowCreateSquad(false)} className="px-3 py-1.5 text-xs font-bold text-white/50 hover:text-white">Cancel</button>
+                    <button type="submit" disabled={creatingSquad} className="px-3 py-1.5 bg-cyan-600 text-white rounded-lg text-xs font-bold hover:bg-cyan-500 flex items-center gap-1">
+                      {creatingSquad ? <Loader2 className="w-3 h-3 animate-spin"/> : <Send className="w-3 h-3"/>} Create
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                {loadingSquads ? (
+                  <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-white/30" /></div>
+                ) : squads.length === 0 ? (
+                  <div className="text-center py-6 border border-dashed border-white/10 rounded-xl">
+                    <p className="text-xs text-white/40 mb-2">No squads have been formed yet.</p>
+                    <button onClick={() => setShowCreateSquad(true)} className="text-cyan-400 text-xs font-bold hover:underline">Be the first to create one!</button>
+                  </div>
                 ) : (
-                  <button
-                    onClick={handleRequestCollaboration}
-                    disabled={loadingCollab || !collabStatus?.can_request}
-                    className={`w-full py-3 font-bold rounded-xl transition-all ${loadingCollab || !collabStatus?.can_request
-                      ? 'bg-white/5 text-white/20 border border-white/10 cursor-not-allowed'
-                      : 'bg-white text-black hover:bg-white/90'
-                      }`}
-                  >
-                    {loadingCollab ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Start Squad'}
-                  </button>
+                  squads.map(sq => (
+                    <div key={sq.id} className="p-4 bg-white/[0.02] border border-white/5 rounded-xl hover:border-white/10 transition-colors">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-bold text-sm text-white/90">{sq.name}</h4>
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-white/10 rounded-full">{sq.member_count} Members</span>
+                      </div>
+                      <p className="text-xs text-white/50 mb-4 line-clamp-2">{sq.description || "No description provided."}</p>
+                      
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="text-[10px] text-white/30">Leader: @{sq.leader_username || 'Unknown'}</span>
+                        
+                        <div className="flex items-center gap-2">
+                          {sq.is_leader ? (
+                            <>
+                              <Link to={`/squads/${sq.id}/chat`} className="text-[10px] font-bold px-3 py-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-md hover:bg-cyan-500/20">
+                                Open Chat
+                              </Link>
+                              <button 
+                                onClick={() => handleDeleteSquad(sq.id)}
+                                className="p-1 bg-red-500/10 text-red-500 border border-red-500/20 rounded-md hover:bg-red-500/20"
+                                title="Delete Squad"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          ) : sq.is_member || sq.user_request_status === 'accepted' ? (
+                            <>
+                              <Link to={`/squads/${sq.id}/chat`} className="text-[10px] font-bold px-3 py-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-md hover:bg-cyan-500/20">
+                                Open Chat
+                              </Link>
+                              <button 
+                                onClick={() => handleLeaveSquad(sq.id)}
+                                className="p-1 bg-white/5 text-white/50 border border-white/10 rounded-md hover:bg-white/10 hover:text-white"
+                                title="Leave Squad"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          ) : sq.user_request_status === 'pending' ? (
+                            <span className="text-[10px] font-bold px-3 py-1 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 rounded-md">
+                              Requested
+                            </span>
+                          ) : sq.user_request_status === 'rejected' ? (
+                            <span className="text-[10px] font-bold px-3 py-1 bg-red-500/10 text-red-500 border border-red-500/20 rounded-md">
+                              Rejected
+                            </span>
+                          ) : (
+                            <button 
+                              onClick={() => handleJoinSquad(sq.id)}
+                              disabled={joiningId === sq.id}
+                              className="text-[10px] font-bold px-3 py-1 bg-white text-black rounded-md hover:bg-white/80"
+                            >
+                              {joiningId === sq.id ? '...' : 'Join Squad'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
             </div>

@@ -75,14 +75,14 @@ class ProblemBase(BaseModel):
     engagement_score: float = 0.0
     
     # Metrics
-    text_length: int = 0
-    word_count: int = 0
-    has_code_block: bool = False
-    num_code_blocks: int = 0
+    text_length: Optional[int] = 0
+    word_count: Optional[int] = 0
+    has_code_block: Optional[bool] = False
+    num_code_blocks: Optional[int] = 0
     
     # Versioning
     cleaned_at: Optional[datetime] = None
-    clean_version: str = "1.0.0"
+    clean_version: Optional[str] = "1.0.0"
     
     # Semantic Search Support
     embedding: Optional[List[float]] = None

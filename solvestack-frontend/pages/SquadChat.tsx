@@ -3,10 +3,10 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import {
   ArrowLeft, Users, Crown, Send, Loader2, MessageSquare,
-  ChevronRight, ChevronLeft, Wifi, WifiOff
+  ChevronRight, ChevronLeft, Wifi, WifiOff, Trash, LogOut
 } from 'lucide-react';
 
-const WS_BASE = 'ws://localhost:8000';
+const WS_BASE = 'ws://localhost:8001';
 
 interface ChatMessage {
   id: number;
@@ -119,6 +119,27 @@ const SquadChat: React.FC = () => {
     inputRef.current?.focus();
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to permanently delete this squad? This action cannot be undone.")) return;
+    try {
+      await apiService.deleteSquad(squadId);
+      navigate('/squads');
+    } catch (e: any) {
+      alert(e.message || 'Failed to delete squad');
+    }
+  };
+
+  const handleLeave = async () => {
+    if (!window.confirm("Are you sure you want to leave this squad?")) return;
+    try {
+      await apiService.leaveSquad(squadId);
+      navigate('/squads');
+    } catch (e: any) {
+      alert(e.message || 'Failed to leave squad');
+    }
+  };
+
+
   const formatTime = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -177,6 +198,24 @@ const SquadChat: React.FC = () => {
             {squad.members.length}
             {showMembers ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
           </button>
+          
+          {squad.is_leader ? (
+            <button
+              onClick={handleDelete}
+              className="p-1.5 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500/20 transition-colors"
+              title="Delete Squad"
+            >
+              <Trash className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              onClick={handleLeave}
+              className="p-1.5 bg-white/5 text-white/50 rounded-xl hover:bg-white/10 hover:text-white transition-colors"
+              title="Leave Squad"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </header>
 

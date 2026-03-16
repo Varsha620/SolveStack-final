@@ -27,8 +27,13 @@ from engineering_scoring_engine import get_scoring_engine
 # Create tables if not exist
 Base.metadata.create_all(bind=engine)
 
+from cleaning_layer import DataCleaner
+
 def store_problems(problems, db):
     count = 0
+    cleaner = DataCleaner()
+    scoring_engine = get_scoring_engine()
+    
     for p in problems:
         try:
             # Check if exists by link
@@ -36,21 +41,27 @@ def store_problems(problems, db):
             if existing:
                 continue
                 
-            new_prob = Problem(
-                title=p.get('title', p.get('raw_title', '')),
-                description=p.get('description', p.get('raw_description', '')),
-                source=p['source'],
-                date=p['date'],
-                suggested_tech=p.get('suggested_tech', ', '.join(p.get('tags', p.get('raw_tags', [])))),
-                author_name=p['author_name'],
-                author_id=p['author_id'],
-                reference_link=p['reference_link'],
-                tags=p.get('tags', p.get('raw_tags', []))
-            )
+            # 1. Prepare raw data dict for cleaner
+            raw_data = {
+                "raw_title": p.get('title', p.get('raw_title', '')),
+                "raw_description": p.get('description', p.get('raw_description', '')),
+                "raw_tags": p.get('tags', p.get('raw_tags', [])),
+                "source": p['source'],
+                "date": p['date'],
+                "author_name": p['author_name'],
+                "author_id": p['author_id'],
+                "reference_link": p['reference_link'],
+                "source_id": p.get('source_id')
+            }
             
-            # Apply Engineering Impact Scoring
+            # 2. Apply Cleaner
+            cleaned_p = cleaner.clean_problem(raw_data)
+            
+            # 3. Create Model instance
+            new_prob = Problem(**cleaned_p)
+            
+            # 4. Apply Engineering Impact Scoring
             try:
-                scoring_engine = get_scoring_engine()
                 scores = scoring_engine.calculate_scores(new_prob)
                 for attr, val in scores.items():
                     setattr(new_prob, attr, val)

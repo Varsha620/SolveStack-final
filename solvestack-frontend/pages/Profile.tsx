@@ -53,15 +53,15 @@ const Profile: React.FC = () => {
             <p className="text-white/40 mb-6 font-mono text-sm">{user.email}</p>
             <div className="flex flex-wrap justify-center md:justify-start gap-4">
               <div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/5 rounded-xl">
-                <span className="text-xl font-bold">{user.interestedCount}</span>
+                <span className="text-xl font-bold">{user.interested_count || 0}</span>
                 <span className="text-xs uppercase tracking-widest text-white/30">Interested</span>
               </div>
               <div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/5 rounded-xl">
-                <span className="text-xl font-bold">{user.squadsCount}</span>
+                <span className="text-xl font-bold">{user.squads_count || 0}</span>
                 <span className="text-xs uppercase tracking-widest text-white/30">Squads</span>
               </div>
               <div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/5 rounded-xl">
-                <span className="text-xl font-bold">{user.activityScore}</span>
+                <span className="text-xl font-bold">{user.activity_score || 0}</span>
                 <span className="text-xs uppercase tracking-widest text-white/30">Pulse</span>
               </div>
             </div>
@@ -119,10 +119,10 @@ const Profile: React.FC = () => {
             <section>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-bold">Active Squads</h3>
-                <span className="text-xs text-cyan-400 font-mono">{user.squadsCount} Current Projects</span>
+                <span className="text-xs text-cyan-400 font-mono">{user.squads_count || 0} Current Projects</span>
               </div>
               <div className="space-y-4">
-                {user.squadsCount === 0 ? (
+                {(user.squads_count || 0) === 0 ? (
                   <div className="p-12 bg-[#090909] border border-white/5 border-dashed rounded-2xl flex flex-col items-center justify-center text-center">
                     <Activity className="w-12 h-12 text-white/10 mb-4" />
                     <p className="text-white/30 text-sm mb-4">You haven't joined any squads yet.</p>

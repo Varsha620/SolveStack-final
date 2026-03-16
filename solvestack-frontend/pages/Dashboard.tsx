@@ -35,7 +35,7 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [offset, setOffset] = useState(0);
-  const LIMIT = 15;
+  const LIMIT = 40;
   const [hasMore, setHasMore] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');

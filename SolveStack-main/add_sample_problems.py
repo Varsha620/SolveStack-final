@@ -103,9 +103,39 @@ def add_sample_problems():
         }
     ]
     
+    from cleaning_layer import DataCleaner
+    from engineering_scoring_engine import get_scoring_engine
+    
+    cleaner = DataCleaner()
+    scoring_engine = get_scoring_engine()
+    
     try:
         for problem_data in sample_problems:
-            problem = Problem(**problem_data)
+            # 1. Prepare raw data (matching cleaner expectations)
+            raw_data = {
+                "raw_title": problem_data.get('title'),
+                "raw_description": problem_data.get('description'),
+                "raw_tags": problem_data.get('tags', []),
+                "source": problem_data['source'],
+                "date": problem_data['date'],
+                "author_name": problem_data['author_name'],
+                "author_id": problem_data['author_id'],
+                "reference_link": problem_data['reference_link'],
+                "source_id": f"sample_{problem_data['author_id']}"
+            }
+            
+            # 2. Clean
+            cleaned_p = cleaner.clean_problem(raw_data)
+            
+            # 3. Create Model
+            problem = Problem(**cleaned_p)
+            
+            # 4. Score
+            scores = scoring_engine.calculate_scores(problem)
+            for attr, val in scores.items():
+                if hasattr(problem, attr):
+                    setattr(problem, attr, val)
+                    
             db.add(problem)
         
         db.commit()
