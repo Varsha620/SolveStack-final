@@ -23,6 +23,7 @@ from scrapers import scrape_github, scrape_stackoverflow, scrape_hackernews
 from scrapers.reddit_scraper import scrape_reddit
 from sqlalchemy.exc import IntegrityError
 from engineering_scoring_engine import get_scoring_engine
+from embedding_service import get_embedding_service
 
 # Create tables if not exist
 Base.metadata.create_all(bind=engine)
@@ -33,6 +34,7 @@ def store_problems(problems, db):
     count = 0
     cleaner = DataCleaner()
     scoring_engine = get_scoring_engine()
+    embedding_service = get_embedding_service()
     
     for p in problems:
         try:
@@ -57,6 +59,11 @@ def store_problems(problems, db):
             # 2. Apply Cleaner
             cleaned_p = cleaner.clean_problem(raw_data)
             
+            # Check for duplicate by Title Hash (Deduplication)
+            existing_hash = db.query(Problem).filter(Problem.title_hash == cleaned_p['title_hash']).first()
+            if existing_hash:
+                continue
+            
             # 3. Create Model instance
             new_prob = Problem(**cleaned_p)
             
@@ -67,6 +74,18 @@ def store_problems(problems, db):
                     setattr(new_prob, attr, val)
             except Exception as e:
                 print(f"Scoring error: {e}")
+            
+            # 5. Apply Embedding
+            try:
+                emb = embedding_service.generate_embedding(
+                    title=new_prob.title,
+                    description=new_prob.description,
+                    tags=new_prob.tags
+                )
+                if emb:
+                    new_prob.embedding = emb
+            except Exception as e:
+                print(f"Embedding error: {e}")
                 
             db.add(new_prob)
             db.commit()

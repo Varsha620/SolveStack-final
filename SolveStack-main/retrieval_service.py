@@ -14,16 +14,18 @@ class RetrievalService:
         vector_sql = text("""
             SELECT ps_id
             FROM problems
-            ORDER BY embedding <=> :embedding
+            WHERE embedding IS NOT NULL
+            ORDER BY embedding <=> cast(:embedding as vector)
             LIMIT :limit
         """)
         
         # 2. Keyword Search (FTS) Query
+        # Use websearch_to_tsquery for more flexible Google-like queries
         keyword_sql = text("""
             SELECT ps_id
             FROM problems
-            WHERE search_vector @@ plainto_tsquery('english', :query)
-            ORDER BY ts_rank(search_vector, plainto_tsquery('english', :query)) DESC
+            WHERE search_vector @@ websearch_to_tsquery('english', :query)
+            ORDER BY ts_rank(search_vector, websearch_to_tsquery('english', :query)) DESC
             LIMIT :limit
         """)
         

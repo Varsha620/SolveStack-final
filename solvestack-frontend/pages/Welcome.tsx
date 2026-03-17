@@ -51,7 +51,6 @@ const Welcome: React.FC = () => {
           </Link>
           
           <div className="flex items-center gap-8 text-[11px] font-bold uppercase tracking-widest text-white/20">
-            <span className="flex items-center gap-2"><div className="w-1 h-1 bg-cyan-500 rounded-full" /> Reddit Sourced</span>
             <span className="flex items-center gap-2"><div className="w-1 h-1 bg-purple-500 rounded-full" /> StackOverflow Sync</span>
             <span className="flex items-center gap-2"><div className="w-1 h-1 bg-yellow-500 rounded-full" /> HN Discovery</span>
           </div>

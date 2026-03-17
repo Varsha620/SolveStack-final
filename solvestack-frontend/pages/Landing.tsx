@@ -80,7 +80,7 @@ const Landing: React.FC = () => {
                     <span className="px-2 py-1 bg-white/5 rounded text-[10px] font-bold text-white/60">WebRTC</span>
                   </div>
                   <div className="pt-4 border-t border-white/5 flex justify-between items-center">
-                    <span className="text-[10px] text-white/20 uppercase font-black">Sourced from Reddit</span>
+                    <span className="text-[10px] text-white/20 uppercase font-black">Sourced from StackOverflow</span>
                     <div className="flex -space-x-2">
                       <div className="w-6 h-6 rounded-full bg-cyan-500 border-2 border-black"></div>
                       <div className="w-6 h-6 rounded-full bg-purple-500 border-2 border-black"></div>
@@ -128,7 +128,7 @@ const Landing: React.FC = () => {
                   <Globe className="w-8 h-8 text-cyan-400" />
                 </div>
                 <h4 className="text-xl font-black italic uppercase tracking-tight">01. Discovery</h4>
-                <p className="text-white/40 text-sm leading-relaxed">Real-time monitoring of technical subreddits, StackOverflow's unanswered queue, and Hacker News show HN.</p>
+                <p className="text-white/40 text-sm leading-relaxed">Real-time monitoring of technical forums, StackOverflow's unanswered queue, and Hacker News show HN.</p>
              </div>
              <div className="space-y-6">
                 <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">

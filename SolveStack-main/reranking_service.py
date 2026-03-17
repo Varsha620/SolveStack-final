@@ -87,7 +87,7 @@ class RerankingService:
             "keyword_query": keyword_query,
             "query_tags": query_tags or [],
             "candidate_ids": candidate_ids,
-            "title_pattern": f"%{keyword_query.split()[0]}%" if keyword_query else "%",
+            "title_pattern": f"%{keyword_query}%" if keyword_query else "%",
             "w_sem": self.w_semantic,
             "w_kw": self.w_keyword,
             "w_tag": self.w_tag,

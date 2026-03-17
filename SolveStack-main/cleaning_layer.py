@@ -35,10 +35,6 @@ class DataCleaner:
     def clean_problem(self, raw_problem: dict) -> dict:
         """
         Processes a raw problem dictionary into a cleaned and feature-enriched record.
-        
-        Expected fields in raw_problem:
-            raw_title, raw_description, raw_tags, source, date, 
-            author_name, author_id, reference_link, source_id
         """
         # 1. Start with metadata and raw fields
         problem = {
@@ -53,8 +49,8 @@ class DataCleaner:
             "clean_version": self.version,
             
             # Preserving RAW fields
-            "raw_title": raw_problem.get("raw_title"),
-            "raw_description": raw_problem.get("raw_description"),
+            "raw_title": raw_problem.get("raw_title", ""),
+            "raw_description": raw_problem.get("raw_description", ""),
             "raw_tags": raw_problem.get("raw_tags", []),
         }
 
@@ -63,34 +59,79 @@ class DataCleaner:
         problem["cleaned_description"] = self._basic_clean(problem["raw_description"])
         
         # 3. Normalization
-        # We store normalized tags in the 'tags' column
         problem["tags"] = self._normalize_tags(problem["raw_tags"])
         problem["normalized_title"] = self._normalize_title(problem["cleaned_title"])
         
-        # For backward compatibility / API use
+        # For backward compatibility
         problem["title"] = problem["cleaned_title"]
         problem["description"] = problem["cleaned_description"]
         problem["suggested_tech"] = ", ".join(problem["tags"])
 
         # 4. Feature Extraction & Hashing
-        problem["title_hash"] = self._generate_hash(problem["normalized_title"])
+        # Aggressive Title Normalization for Hashing
+        norm_title = str(problem["normalized_title"] or "")
+        hash_slug = re.sub(r'[^a-z0-9]', '', norm_title)
+        problem["title_hash"] = self._generate_hash(hash_slug)
         
         # Metrics
-        problem["text_length"] = len(problem["cleaned_title"]) + len(problem["cleaned_description"])
-        problem["word_count"] = len(problem["cleaned_description"].split())
+        cleaned_title = str(problem["cleaned_title"] or "")
+        cleaned_desc = str(problem["cleaned_description"] or "")
         
-        has_code, code_count = self._detect_code(problem["raw_description"])
+        problem["text_length"] = len(cleaned_title) + len(cleaned_desc)
+        problem["word_count"] = len(cleaned_desc.split())
+        
+        has_code, code_count = self._detect_code(str(problem["raw_description"] or ""))
         problem["has_code_block"] = has_code
         problem["num_code_blocks"] = code_count
         
-        # Passthrough scoring fields if present
+        # Gibberish & Technicality Checks
+        problem["is_gibberish"] = self._is_gibberish(cleaned_title, cleaned_desc)
+        problem["is_technical"] = self._check_technicality(cleaned_title, cleaned_desc, problem["tags"])
+
+        # Passthrough scoring fields
         for field in ["upvotes", "downvotes", "comment_count", "engagement_score", "difficulty_score"]:
             problem[field] = raw_problem.get(field, 0 if "score" not in field else 0.0)
 
-        # 5. Determine Difficulty Level algorithmically
         problem["difficulty_level"] = self._calculate_difficulty_level(problem["cleaned_title"], problem["cleaned_description"], problem["tags"])
 
         return problem
+
+    def _is_gibberish(self, title: str, description: str) -> bool:
+        """Detects if content looks like low-quality noise or random characters."""
+        content = f"{title} {description}"
+        if not content.strip(): return True
+        
+        # 1. Word to Char ratio (gibberish often lacks spaces or has too many symbols)
+        words = content.split()
+        if len(words) == 0: return True
+        avg_word_len = len(content) / len(words)
+        if avg_word_len > 15 or avg_word_len < 2: return True
+        
+        # 2. Excessive non-ASCII
+        non_ascii = len(re.findall(r'[^\x00-\x7F]', content))
+        if non_ascii > len(content) * 0.3: return True
+        
+        return False
+
+    def _check_technicality(self, title: str, description: str, raw_tags: Optional[List[str]]) -> bool:
+        """Heuristic check for technical intent vs personal stories/meta content."""
+        content = f"{title} {description}".lower()
+        
+        tags = list(raw_tags) if raw_tags else []
+        tech_indicators = ["how to", "error", "exception", "broken", "implement", "deploy", "config", "bug", "crash"]
+        tech_density = sum(1 for w in tech_indicators if w in content)
+        
+        # Low-signal personal markers
+        personal_markers = ["career", "salary", "feeling", "unhappy", "hated", "medical", "diagnosis", "marriage", "wife", "boss", "new job"]
+        personal_density = sum(1 for w in personal_markers if w in content)
+        
+        if personal_density > tech_density + 2:
+            return False
+            
+        if tech_density == 0 and len(tags) == 0:
+            return False
+            
+        return True
 
     def _calculate_difficulty_level(self, title: str, description: str, tags: List[str]) -> int:
         """

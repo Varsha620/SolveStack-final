@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Problem, Difficulty } from '../types';
+import { Problem, Difficulty, Source } from '../types';
 import { apiService } from '../services/api';
 import ProblemCard from '../components/ProblemCard';
 import {
@@ -151,15 +151,17 @@ const Dashboard: React.FC = () => {
     const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.techStack.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesDifficulty = selectedDifficulty === 'All' || p.difficulty === selectedDifficulty;
-    const matchesPlatform = selectedPlatform === 'All' || p.source === selectedPlatform;
+    const matchesPlatform = selectedPlatform === 'All' || 
+      (selectedPlatform === 'GitHub' && p.source === Source.GITHUB) ||
+      (selectedPlatform === 'Hacker News' && p.source === Source.HACKERNEWS) ||
+      (selectedPlatform === 'Stack Overflow' && p.source === Source.STACKOVERFLOW);
     return matchesSearch && matchesDifficulty && matchesPlatform;
   });
 
   const chartData = [
-    { name: 'Reddit', count: 12 },
-    { name: 'StackOverflow', count: 8 },
-    { name: 'HN', count: 5 },
-    { name: 'Other', count: 3 }
+    { name: 'Stack Overflow', count: problems.filter(p => p.source === Source.STACKOVERFLOW).length },
+    { name: 'GitHub', count: problems.filter(p => p.source === Source.GITHUB).length },
+    { name: 'Hacker News', count: problems.filter(p => p.source === Source.HACKERNEWS).length }
   ];
 
   return (
@@ -250,7 +252,7 @@ const Dashboard: React.FC = () => {
             <div className="flex flex-wrap items-center gap-4">
               {/* Platform Filter */}
               <div className="flex items-center p-1 bg-white/[0.03] border border-white/10 rounded-2xl">
-                {['All', 'GitHub', 'Hacker News', 'Stack Overflow', 'Reddit'].map((platform) => {
+                {['All', 'GitHub', 'Hacker News', 'Stack Overflow'].map((platform) => {
                   const Icon = platform === 'GitHub' ? Terminal :
                     platform === 'Hacker News' ? Globe :
                       platform === 'Stack Overflow' ? Code2 :

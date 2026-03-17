@@ -86,6 +86,22 @@ class EngineeringImpactScoringEngine:
         # Reward specific tool mentions (from keywords)
         if technical_hits > 0:
             signal_quality = min(1.0, signal_quality + 0.2)
+            
+        # --- 5. Hard Penalties (The "Reddit Fix") ---
+        # Gibberish check
+        if getattr(problem, 'is_gibberish', False):
+            depth_score = 0
+            impact_score = 0
+            complexity_score = 0
+            signal_quality = 0
+            
+        # Non-technical content check
+        if not getattr(problem, 'is_technical', True):
+            # Heavily cap all technical scores if content is personal/non-technical
+            depth_score *= 0.1
+            impact_score *= 0.1
+            complexity_score *= 0.2
+            signal_quality *= 0.3
 
         # --- Final EIS Calculation (0 - 100) ---
         # Weights: 0.35 Depth, 0.30 Impact, 0.20 Complexity, 0.15 Signal

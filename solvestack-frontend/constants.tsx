@@ -18,7 +18,6 @@ import {
 export const THEME_COLOR = '#00ffcc'; // Grok/Cyberpunk Cyan
 
 export const PLATFORM_ICONS = {
-  Reddit: <MessageSquare className="w-4 h-4 text-orange-500" />,
   'Stack Overflow': <Code2 className="w-4 h-4 text-orange-400" />,
   'Hacker News': <Globe className="w-4 h-4 text-orange-600" />,
   'GitHub': <Terminal className="w-4 h-4 text-purple-500" />

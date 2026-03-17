@@ -97,6 +97,10 @@ class Problem(Base):
     has_code_block = Column(Boolean, default=False)
     num_code_blocks = Column(Integer, default=0)
     
+    # Gibberish & Technicality Flags
+    is_gibberish = Column(Boolean, default=False)
+    is_technical = Column(Boolean, default=True)
+    
     # Audit/Version Info
     scraped_at = Column(DateTime, default=datetime.utcnow)
     cleaned_at = Column(DateTime, default=datetime.utcnow)

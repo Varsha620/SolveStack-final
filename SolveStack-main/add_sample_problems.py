@@ -105,9 +105,11 @@ def add_sample_problems():
     
     from cleaning_layer import DataCleaner
     from engineering_scoring_engine import get_scoring_engine
+    from embedding_service import get_embedding_service
     
     cleaner = DataCleaner()
     scoring_engine = get_scoring_engine()
+    embedding_service = get_embedding_service()
     
     try:
         for problem_data in sample_problems:
@@ -135,6 +137,18 @@ def add_sample_problems():
             for attr, val in scores.items():
                 if hasattr(problem, attr):
                     setattr(problem, attr, val)
+            
+            # 5. Embed
+            try:
+                emb = embedding_service.generate_embedding(
+                    title=problem.title,
+                    description=problem.description,
+                    tags=problem.tags
+                )
+                if emb:
+                    problem.embedding = emb
+            except Exception as e:
+                print(f"Embedding error: {e}")
                     
             db.add(problem)
         
