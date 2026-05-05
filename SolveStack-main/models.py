@@ -123,7 +123,9 @@ class Problem(Base):
         embedding = Column(JSON, nullable=True) # Store as array/list of floats
         
     # Full-Text Search Support (PostgreSQL)
-    search_vector = Column(TSVECTOR)
+    import os
+    if os.getenv("DATABASE_URL", "sqlite").startswith("postgresql"):
+        search_vector = Column(TSVECTOR)
     
     # Relationships
     interested_users = relationship(

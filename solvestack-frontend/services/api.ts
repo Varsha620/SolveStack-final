@@ -1,7 +1,7 @@
 
 import { Problem, Difficulty, Source, SolutionType, User } from '../types';
 
-const API_BASE_URL = 'http://localhost:8001';
+const API_BASE_URL = 'http://localhost:8000';
 
 // Helper to handle response errors
 const handleResponse = async (response: Response) => {
