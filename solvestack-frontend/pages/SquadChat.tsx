@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
+import { WS_BASE_URL } from '../services/config';
 import {
   ArrowLeft, Users, Crown, Send, Loader2, MessageSquare,
   ChevronRight, ChevronLeft, Wifi, WifiOff, Trash, LogOut
 } from 'lucide-react';
-
-const WS_BASE = 'ws://localhost:8001';
+import { useUI } from '../contexts/UIContext';
 
 interface ChatMessage {
   id: number;
@@ -45,6 +45,7 @@ const SquadChat: React.FC = () => {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const token = localStorage.getItem('token');
+  const { toast, confirm } = useUI();
 
   // Decode current user id from JWT
   const currentUserId = (() => {
@@ -89,7 +90,7 @@ const SquadChat: React.FC = () => {
   useEffect(() => {
     if (!token || loading) return;
 
-    const ws = new WebSocket(`${WS_BASE}/ws/squad/${squadId}?token=${token}`);
+    const ws = new WebSocket(`${WS_BASE_URL}/ws/squad/${squadId}?token=${encodeURIComponent(token)}`);
     wsRef.current = ws;
 
     ws.onopen = () => setConnected(true);
@@ -120,22 +121,36 @@ const SquadChat: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to permanently delete this squad? This action cannot be undone.")) return;
+    const shouldDelete = await confirm({
+      title: 'Delete squad?',
+      message: 'This removes the squad and all chat history. This action cannot be undone.',
+      confirmLabel: 'Delete squad',
+      tone: 'danger',
+    });
+    if (!shouldDelete) return;
     try {
       await apiService.deleteSquad(squadId);
+      toast('Squad deleted', { variant: 'success' });
       navigate('/squads');
     } catch (e: any) {
-      alert(e.message || 'Failed to delete squad');
+      toast('Could not delete squad', { message: e.message || 'Please try again later.', variant: 'error' });
     }
   };
 
   const handleLeave = async () => {
-    if (!window.confirm("Are you sure you want to leave this squad?")) return;
+    const shouldLeave = await confirm({
+      title: 'Leave squad?',
+      message: 'You will lose access to this chat unless you rejoin later.',
+      confirmLabel: 'Leave squad',
+      tone: 'danger',
+    });
+    if (!shouldLeave) return;
     try {
       await apiService.leaveSquad(squadId);
+      toast('Left squad', { variant: 'success' });
       navigate('/squads');
     } catch (e: any) {
-      alert(e.message || 'Failed to leave squad');
+      toast('Could not leave squad', { message: e.message || 'Please try again later.', variant: 'error' });
     }
   };
 

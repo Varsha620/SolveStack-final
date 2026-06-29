@@ -13,27 +13,30 @@ import Squads from './pages/Squads';
 import SquadChat from './pages/SquadChat';
 
 import { AuthProvider } from './contexts/AuthContext';
+import { UIProvider } from './contexts/UIContext';
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<Welcome />} />
-          <Route path="/landing" element={<Landing />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/trending" element={<Trending />} />
-          <Route path="/interests" element={<Interests />} />
-          <Route path="/squads" element={<Squads />} />
-          <Route path="/squads/:id/chat" element={<SquadChat />} />
-          <Route path="/problem/:id" element={<ProblemDetail />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/login" element={<Auth />} />
-          <Route path="/register" element={<Auth />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+    <UIProvider>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<Welcome />} />
+            <Route path="/landing" element={<Landing />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/trending" element={<Trending />} />
+            <Route path="/interests" element={<Interests />} />
+            <Route path="/squads" element={<Squads />} />
+            <Route path="/squads/:id/chat" element={<SquadChat />} />
+            <Route path="/problem/:id" element={<ProblemDetail />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/login" element={<Auth />} />
+            <Route path="/register" element={<Auth />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </UIProvider>
   );
 };
 

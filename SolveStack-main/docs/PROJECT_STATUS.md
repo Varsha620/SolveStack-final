@@ -1,300 +1,142 @@
 # SolveStack - Project Status
 
-**Last Updated:** January 15, 2026
-**Sprint Progress:** Day 30/30 ✅
-**Status:** Production Ready
-
----
-
-## 🎯 Project Overview
-
-SolveStack is a real-world problem discovery and collaboration platform that aggregates technical problems from multiple sources (Reddit, Stack Overflow, Hacker News, GitHub) and uses AI-powered classification to help developers find meaningful challenges to solve.
-
----
-
-## ✅ Completed Phases
-
-### Phase 1: Foundation & Core Infrastructure ✅
-**Status:** Complete  
-**Completion Date:** December 2025
-
-#### Deliverables
-- ✅ FastAPI backend setup with modular structure
-- ✅ PostgreSQL database integration
-- ✅ SQLAlchemy ORM models
-- ✅ JWT authentication system
-- ✅ Basic REST API endpoints
-- ✅ Environment configuration (.env)
-
----
-
-### Phase 2: Multi-Platform Scraping System ✅
-**Status:** Complete  
-**Completion Date:** December 30, 2025
-
-#### Phase 2A: Reddit Scraper (Refactored)
-- ✅ Modular `reddit_scraper.py`
-- ✅ Subreddit targeting (r/python, r/javascript, r/webdev, etc.)
-- ✅ Quality filtering (minimum upvotes, word count)
-- ✅ Rate limiting and error handling
-
-#### Phase 2B: Stack Overflow Scraper
-- ✅ High-signal question filtering
-- ✅ Tag-based discovery (python, javascript, react, etc.)
-- ✅ Active question prioritization (no accepted answer, high views)
-- ✅ API quota management
-
-#### Phase 2C: Hacker News Scraper
-- ✅ Ask HN post discovery
-- ✅ Developer pain point identification
-- ✅ Comment-based relevance scoring
-- ✅ Robust error handling
-
-#### Phase 2D: Unified Scraping Endpoint
-- ✅ `POST /scrape/all` endpoint
-- ✅ Quota management: 30 problems per run
-- ✅ Redistribution logic (if one source fails, others compensate)
-- ✅ De-duplication by `reference_link` and title similarity
-- ✅ Comprehensive logging (authentication, fetch counts, errors)
-
-**Test Results:**
-- ✅ 30 problems fetched per run consistently
-- ✅ Zero duplicates in database
-- ✅ All required fields populated
-- ✅ Human-readable explanations generated
-
----
-
-### Phase 3: GitHub Issues Scraper ✅
-**Status:** Complete  
-**Completion Date:** January 9, 2026
-
-#### Phase 3.1: Database Schema Migration
-- ✅ Added `source_id`, `humanized_explanation`, `solution_possibility` fields
-- ✅ Alembic migration scripts created and tested
-- ✅ Backward compatibility maintained
-- ✅ Production database migrated successfully
-
-#### Phase 3.2: GitHub Scraper Implementation
-- ✅ Multi-domain repository discovery strategy
-  - Active project identification (frameworks, libraries, devtools)
-  - Language-weighted sampling (Python, JS, ML, DevOps, Cloud, Systems)
-  - Exclusion of awesome-lists and resource repos
-- ✅ Intelligent issue filtering
-  - Minimum body length (80 characters)
-  - Must have comments OR "good" labels (bug, enhancement, help-wanted)
-  - Exclude PRs, "wontfix", "duplicate", "spam"
-- ✅ Difficulty classification (beginner, intermediate, advanced)
-- ✅ Solution possibility scoring
-- ✅ GitHub Token authentication (5000 req/hour)
-
-#### Phase 3.3: Performance Optimization
-- ✅ Repository discovery caching (60-minute TTL)
-- ✅ Reduced duplicate rediscovery across retries
-- ✅ Improved `/scrape/all` endpoint performance
-- ✅ Comprehensive error logging and rate limit handling
-
-**Test Results:**
-- ✅ GitHub scraper integrated into `/scrape/all`
-- ✅ 30 problems per run from all sources (Reddit, SO, HN, GitHub)
-- ✅ Duplicate rate reduced from 40% to <5%
-- ✅ Repository diversity confirmed (no awesome-lists)
-- ✅ Issue quality improved (meaningful descriptions, active discussions)
-
----
-
-### Phase 4: AI-Powered Classification ✅
-**Status:** Complete  
-**Completion Date:** January 2026
-
-#### Components
-- ✅ `scoring_engine.py` - AI classification module
-- ✅ Difficulty scoring (beginner/intermediate/advanced)
-- ✅ Solution possibility estimation
-- ✅ Human-readable explanation generation
-- ✅ NLP-based keyword extraction
-
-**Models Used:**
-- Transformers (Hugging Face)
-- NLTK for text processing
-- Custom heuristics for domain-specific classification
-
----
-
-### Phase 5: Collaboration Features ✅
-**Status:** Complete  
-**Completion Date:** December 2025
+**Last Updated:** June 29, 2026  
+**Status:** Production-minded portfolio build; deployment preparation in progress
+
+## Summary
 
-#### Features
-- ✅ Problem voting (upvote/downvote)
-- ✅ Claim system (track who's solving what)
-- ✅ Collaborator management
-- ✅ Real-time chat integration (Firebase)
-- ✅ User roles (admin, user)
-
-**Testing:**
-- ✅ See `COLLABORATION_TESTING.md` for test scenarios
-
----
-
-## 🔄 Current Phase
-
-### Phase 6: Production Deployment Preparation ⏳
-**Status:** In Progress (Final Stage)  
-**Target:** January 15, 2026
-
-#### Completed Tasks
-- ✅ Requirements.txt sanitized
-- ✅ .env.example created with placeholders
-- ✅ .gitignore comprehensive rules validated
-- ✅ Test scripts organized
-- ✅ Alembic migrations verified
-- ✅ Documentation reorganized (README, PROJECT_STATUS, TESTING_GUIDE)
-
-#### Remaining Tasks
-- ⏳ Final commit verification
-- ⏳ GitHub repository cleanup
-- ⏳ Deployment to Render/Vercel
-- ⏳ Production environment testing
-
----
-
-## 📊 Project Metrics
+SolveStack is a full-stack platform for finding real-world technical problems, ranking them by engineering value, and forming squads around promising ideas. The project is strong enough to support a backend/full-stack portfolio narrative, but it should not be described as a fully deployed production service until hosting, monitoring, and CI are complete.
+
+## Implemented
+
+### Backend Foundation
+
+- FastAPI application with route-level API documentation.
+- SQLAlchemy models for users, problems, interests, collaboration requests, squads, join requests, and squad messages.
+- JWT authentication with password hashing.
+- Environment-based production hardening:
+  - Production requires a real `SECRET_KEY`.
+  - CORS uses configured frontend origins instead of wildcard origins.
+- SQLite local development mode.
+- PostgreSQL-ready configuration.
+- Alembic migration structure.
 
-### Code Statistics
-- **Backend Files:** 15+ Python modules
-- **Database Models:** 7+ tables
-- **API Endpoints:** 20+ routes
-- **Test Scripts:** 6+ comprehensive tests
-- **Documentation Pages:** 10+ guides
+### Problem Discovery
 
-### Database Schema
-- **Users:** Authentication, roles, profiles
-- **Problems:** Multi-source problems with metadata
-- **Votes:** User voting system
-- **Claims:** Problem ownership tracking
-- **Collaborators:** Team collaboration
-- **Tags:** Problem categorization
-- **Comments:** Real-time discussions
+- Scraper modules for Reddit, Stack Overflow, Hacker News, and GitHub.
+- Unified scraping endpoint: `POST /scrape/all`.
+- Deduplication and cleaning support.
+- Scoring fields for difficulty, signal quality, technical depth, cognitive complexity, industry impact, and engineering impact.
 
-### Scraping Performance
-- **Total Sources:** 4 (Reddit, Stack Overflow, Hacker News, GitHub)
-- **Problems per Run:** 30 (configurable quota system)
-- **De-duplication Rate:** 95%+ accuracy
-- **GitHub Rate Limit:** 5000 req/hour (with token)
-- **Cache Duration:** 60 minutes (repository discovery)
+### Search And Intelligence
 
----
+- Intent-aware search endpoint.
+- Hybrid search endpoint.
+- Semantic search endpoint.
+- Shelf/impact explanation endpoints.
+- Prototype-plan endpoint for turning a problem into an implementation outline.
+- Search log model for future tuning.
 
-## 🧪 Testing Coverage
+### User Workflows
 
-### Backend Tests
-- ✅ `test_backend.py` - API endpoint validation
-- ✅ `test_pg_connection.py` - Database connectivity
-- ✅ `verify_db.py` - Schema verification
+- Register/login/current-user endpoints.
+- Problem listing, details, trending, and saved-interest flows.
+- Interest tracking with authenticated users.
+- User profile metrics for interests and squads.
 
-### Scraper Tests
-- ✅ `test_individual_scrapers.py` - Per-source validation
-- ✅ `test_scrape_all_endpoint.py` - Unified scraping
-- ✅ `test_github_comprehensive.py` - GitHub scraper deep test
+### Collaboration
 
-### Integration Tests
-- ✅ Authentication flow
-- ✅ Problem CRUD operations
-- ✅ Voting and collaboration
-- ✅ Multi-source scraping
+- Collaboration request endpoints.
+- Squad creation and discovery.
+- Join-request workflow with leader accept/reject.
+- Squad leave/delete flows.
+- Database-persisted squad messages.
+- FastAPI WebSocket chat at `WS /ws/squad/{squad_id}`.
 
-See **TESTING_GUIDE.md** for detailed test procedures.
+### Frontend
 
----
+- React/Vite frontend lives in `../solvestack-frontend`.
+- Routes for welcome, landing, dashboard, trending, interests, profile, problem detail, squads, and squad chat.
+- Environment-based API and WebSocket configuration.
+- Tailwind/PostCSS build pipeline instead of CDN Tailwind.
+- Sleeker global styling baseline for a portfolio-grade UI direction.
+- In-app toast and confirmation system replacing browser alerts/confirms.
+- Demo fallback data so the shelf stays populated when live APIs are unavailable.
+- `seed_demo_data.py` for reliable hosted demo database seeding.
 
-## 🚧 Known Issues & Limitations
+## Not Currently Implemented
 
-### Minor Issues
-1. **Firebase Chat:** Requires manual credential setup (optional feature)
-2. **Stripe Integration:** Placeholder for future monetization
-3. **Frontend:** React frontend in `problem-shelf-frontend/` (separate deployment)
+These items appeared in older phase notes or future ideas, but should not be claimed as current functionality:
 
-### Performance Considerations
-1. **Scraping Rate Limits:** Respect API quotas for all sources
-2. **Database Indexing:** May need optimization for >10k problems
-3. **AI Classification:** Transformers model can be slow on CPU (consider GPU for production)
+- Stripe payments or premium subscriptions.
+- Firebase chat. Current chat uses FastAPI WebSockets and database persistence.
+- A complete voting API exposed as `/problems/{id}/vote`.
+- A complete claim/ownership API exposed as `/problems/{id}/claim`.
+- Admin roles or a finished role-management system.
+- Hosted production deployment.
+- Production monitoring/alerting.
+- CI/CD pipeline.
 
----
+## Deployment Status
 
-## 🎯 Future Enhancements
+Completed deployment preparation:
 
-### Short-term (Next Sprint)
-- [ ] Deploy backend to Render
-- [ ] Deploy frontend to Vercel
-- [ ] Production monitoring and logging
-- [ ] User analytics dashboard
+- Frontend API URL moved from hardcoded localhost to `VITE_API_URL`.
+- WebSocket URL moved from hardcoded localhost to derived/configurable `VITE_WS_URL`.
+- Backend CORS restricted to configured origins.
+- Backend production mode fails fast without a real `SECRET_KEY`.
+- Backend and frontend `.env.example` files added.
+- Frontend production build verified after Tailwind/PostCSS setup.
+- Frontend demo mode added via `VITE_DEMO_MODE=fallback`.
+- Backend demo seed script added via `python seed_demo_data.py`.
 
-### Long-term (Q1-Q2 2026)
-- [ ] Email notifications for claimed problems
-- [ ] GitHub integration (auto-create repos for solutions)
-- [ ] Leaderboard and gamification
-- [ ] Advanced search and filters
-- [ ] Mobile app (React Native)
+Remaining before calling it production deployed:
 
----
+- Deploy backend to Render, Railway, Fly.io, or similar.
+- Deploy frontend to Vercel, Netlify, or similar.
+- Provision hosted PostgreSQL.
+- Run migrations against hosted database.
+- Add basic CI for backend compile/tests and frontend build.
+- Add structured logging and basic health/uptime checks.
 
-## 📂 Key Documentation Files
+## Testing Status
 
-### Setup & Configuration
-- **README.md** - Quick start guide for teammates
-- **.env.example** - Environment variable template
-- **requirements.txt** - Python dependencies
+Available local checks:
 
-### Technical Documentation
-- **PHASE3_1_MIGRATION.md** - Database migration guide
-- **TESTING_GUIDE.md** - Testing procedures
-- **COLLABORATION_TESTING.md** - Feature validation
+- `python -m py_compile main.py auth.py models.py schemas.py database.py`
+- `python verify_db.py`
+- `python test_backend.py`
+- `python test_individual_scrapers.py`
+- `python test_scrape_all_endpoint.py`
+- `npm run build` in `../solvestack-frontend`
 
-### Phase Summaries
-- **PHASE2C_SUMMARY.md** - Multi-source scraping
-- **PHASE3_1_SUMMARY.md** - GitHub scraper integration
-- **PHASE3_1_COMPLETE.md** - Migration completion report
+Current gap:
 
----
+- Tests are script-based and should be consolidated into a repeatable pytest/CI workflow.
+- End-to-end frontend tests are not yet present.
 
-## 👥 Team & Roles
+## Known Limitations
 
-- **Backend Development:** Core API, scrapers, database
-- **AI/ML:** Classification engine, NLP processing
-- **DevOps:** Database setup, migrations, deployment
-- **Testing:** Comprehensive test coverage
+- Scraping depends on external API quotas, credentials, and network availability.
+- AI/embedding workflows may be slow on CPU.
+- Some docs under `docs/` are phase notes and may describe planned or historical approaches. `README.md` and this file are the current source of truth.
+- The frontend is visually improving but still needs more empty-state refinement and a guided demo path.
 
----
+## Recommended Next Steps
 
-## 📅 Timeline Summary
+1. Add a demo login path.
+2. Add CI for backend compile checks and frontend build.
+3. Deploy backend, database, and frontend.
+4. Add screenshots, architecture diagram, and a short portfolio case study.
 
-- **Day 1-7:** Foundation (FastAPI, PostgreSQL, Auth)
-- **Day 8-15:** Multi-source scraping (Reddit, SO, HN)
-- **Day 16-20:** GitHub scraper implementation
-- **Day 21-25:** AI classification and optimization
-- **Day 26-30:** Production preparation and documentation
+## Portfolio Framing
 
-**Sprint Completion:** ✅ **100%**
+Use this as a production-minded full-stack portfolio project demonstrating:
 
----
-
-## 🎉 Achievements
-
-1. ✅ Multi-platform scraping from 4+ sources
-2. ✅ AI-powered problem classification
-3. ✅ Production-ready database with migrations
-4. ✅ Comprehensive API with authentication
-5. ✅ Team collaboration features
-6. ✅ Robust testing and documentation
-
----
-
-## 📝 Notes
-
-- All sensitive credentials removed from codebase
-- `.env` file excluded from Git (see `.env.example`)
-- Database migrations tested and verified
-- Test scripts ready for CI/CD integration
-
-**Project is ready for GitHub upload and teammate collaboration!** 🚀
+- FastAPI REST API design.
+- PostgreSQL-ready schema design.
+- JWT authentication.
+- Real-world data ingestion.
+- Search/ranking workflows.
+- Real-time collaboration via WebSockets.
+- Deployment configuration and security hardening.

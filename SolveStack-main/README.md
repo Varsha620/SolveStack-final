@@ -3,318 +3,214 @@
 [![Python](https://img.shields.io/badge/Python-3.9%2B-blue)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109%2B-green)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2B-blue)](https://www.postgresql.org/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## 📋 Project Overview
+SolveStack is a full-stack platform for discovering and curating real-world technical problems from developer communities. It combines scraping, backend APIs, search, scoring, authentication, and team collaboration flows so builders can find meaningful project ideas instead of generic clone apps.
 
-**SolveStack** is an intelligent platform for discovering, curating, and collaborating on real-world technical problems from multiple sources including Reddit, Stack Overflow, Hacker News, and GitHub. It uses AI-powered classification to help developers, researchers, and teams find meaningful problems to solve.
+## Current Status
 
-### Key Features
-- 🔍 **Multi-Platform Scraping**: Automated discovery from 4+ sources
-- 🤖 **AI-Powered Classification**: Difficulty scoring and solution possibility analysis
-- 👥 **Team Collaboration**: Real-time chat, voting, and problem discussions
-- 🔐 **Secure Authentication**: JWT-based auth with role management
-- 📊 **Smart Filtering**: De-duplication, quality scoring, and intelligent categorization
-- 🗄️ **Production-Ready**: PostgreSQL + Alembic migrations for schema versioning
+This repository is a production-minded portfolio project, not a fully hosted production service yet.
 
----
+Implemented and working locally:
+- FastAPI backend with JWT authentication.
+- SQLAlchemy models for users, problems, interests, squads, join requests, and squad messages.
+- SQLite development mode and PostgreSQL-ready configuration.
+- Alembic migrations for database schema management.
+- Multi-source scraping modules for Reddit, Stack Overflow, Hacker News, and GitHub.
+- Problem listing, details, trending, interests, semantic search, impact explanations, and prototype-plan endpoints.
+- Squad collaboration: create squads, request to join, accept/reject members, leave/delete squads, and WebSocket chat.
+- React/Vite frontend in `../solvestack-frontend`.
+- Environment-based frontend/backend configuration for deployment.
 
-## 🚀 Quick Start for Teammates
+In progress or intentionally optional:
+- Public deployment to Render/Railway/Vercel/Netlify.
+- Production monitoring and logging.
+- CI pipeline.
+- Hosted demo URL.
+- Payment/subscription features. Stripe fields exist in the data model, but payment flows are not implemented.
+- Firebase. Earlier docs mention Firebase, but current chat uses FastAPI WebSockets and database-persisted squad messages.
 
-### Prerequisites
-- **Python 3.9+** installed
-- **PostgreSQL 15+** installed and running
-- **Git** installed
-- API credentials for scraping sources (see Environment Setup)
+## Core Features
 
-### Step 1: Clone the Repository
+- Multi-source discovery: scrape technical problems from Reddit, Stack Overflow, Hacker News, and GitHub.
+- Problem cleaning and scoring: normalize text, reduce duplicates, classify difficulty, and compute engineering-impact signals.
+- Search: keyword, hybrid, and semantic-style search endpoints.
+- Authentication: register/login with JWT-based protected routes.
+- Personal workflow: mark problems as interesting and view saved items.
+- Collaboration: form squads around problems, manage join requests, and chat in real time over WebSockets.
+- Deployment hardening: environment-based CORS, required production JWT secret, frontend API/WS URL configuration.
+
+## Tech Stack
+
+- Backend: Python, FastAPI, SQLAlchemy, Pydantic, JWT auth.
+- Database: SQLite for local development, PostgreSQL-ready production configuration, Alembic migrations.
+- Search/AI: sentence-transformer/embedding support, engineering-impact scoring, reranking and explanation services.
+- Frontend: React, Vite, TypeScript, Tailwind CSS, lucide-react.
+- Tooling: pytest-style scripts, Postman-friendly API, Docker-ready dependency structure.
+
+## Quick Start
+
+### Backend
+
 ```bash
-git clone <repository-url>
-cd major-proj-demo
-```
-
-### Step 2: Set Up Python Environment
-```bash
-# Create virtual environment
+cd SolveStack-main
 python -m venv venv
-
-# Activate virtual environment
-# On Windows:
-venv\\Scripts\\activate
-# On macOS/Linux:
-source venv/bin/activate
-
-# Install dependencies
+venv\Scripts\activate
 pip install -r requirements.txt
-```
-
-### Step 3: Configure PostgreSQL Database
-```bash
-# Open PostgreSQL command line
-psql -U postgres
-
-# Create database
-CREATE DATABASE solvestack;
-
-# Exit PostgreSQL
-\\q
-```
-
-### Step 4: Configure Environment Variables
-```bash
-# Copy example environment file
-cp .env.example .env
-
-# Edit .env with your credentials
-# See "Environment Variables" section below
-```
-
-### Step 5: Run Database Migrations
-```bash
-# Initialize Alembic (if needed)
-alembic upgrade head
-```
-
-### Step 6: Run the Application
-```bash
-# Start the FastAPI server
+copy .env.example .env
 uvicorn main:app --reload
-
-# Server will be available at:
-# http://127.0.0.1:8000
-# API docs at: http://127.0.0.1:8000/docs
 ```
 
----
+Backend URLs:
+- API: `http://127.0.0.1:8000`
+- Docs: `http://127.0.0.1:8000/docs`
 
-## 🔧 Environment Variables
+### Frontend
 
-Copy `.env.example` to `.env` and configure the following:
-
-### Required Variables
 ```bash
-# Database
-DATABASE_URL=postgresql://postgres:your_password@localhost:5432/solvestack
+cd solvestack-frontend
+npm install
+copy .env.example .env
+npm run dev
+```
 
-# JWT Authentication
+Frontend defaults to:
+- API: `http://localhost:8000`
+- WebSocket: derived from `VITE_API_URL`
+
+## Environment Variables
+
+Backend `.env`:
+
+```bash
+ENVIRONMENT=development
 SECRET_KEY=<generate with: python -c "import secrets; print(secrets.token_urlsafe(32))">
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=120
+DATABASE_URL=sqlite:///./solvestack_dev.db
+FRONTEND_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173
 ```
 
-### API Credentials (for scraping)
+Production backend must set:
+
 ```bash
-# Reddit API (https://www.reddit.com/prefs/apps)
-REDDIT_CLIENT_ID=your_reddit_client_id
-REDDIT_CLIENT_SECRET=your_reddit_client_secret
-REDDIT_USER_AGENT=platform:YourAppName:1.0 (by /u/YourUsername)
-
-# Stack Overflow (https://stackapps.com/apps/oauth/register)
-STACKEXCHANGE_KEY=your_stackexchange_key
-
-# GitHub Token (https://github.com/settings/tokens)
-GITHUB_TOKEN=your_github_token  # Optional but recommended
+ENVIRONMENT=production
+SECRET_KEY=<strong unique secret>
+FRONTEND_ORIGINS=https://your-frontend-domain.example
+DATABASE_URL=postgresql://user:password@host:5432/solvestack
 ```
 
-### Optional Variables
+Optional scraper credentials:
+
 ```bash
-# Stripe (for payments)
-STRIPE_SECRET_KEY=your_stripe_key
-STRIPE_PUBLISHABLE_KEY=your_publishable_key
-STRIPE_PRICE_ID=your_price_id
-
-# Firebase (for real-time chat)
-FIREBASE_CREDENTIALS_PATH=path/to/firebase-credentials.json
+REDDIT_CLIENT_ID=
+REDDIT_CLIENT_SECRET=
+REDDIT_USER_AGENT=
+STACKEXCHANGE_KEY=
+GITHUB_TOKEN=
 ```
 
----
+Frontend `.env`:
 
-## 📁 Project Structure
-
-```
-major-proj-demo/
-├── main.py                   # FastAPI application entry point
-├── models.py                 # SQLAlchemy database models
-├── schemas.py                # Pydantic schemas for validation
-├── database.py               # Database connection & session management
-├── auth.py                   # JWT authentication logic
-├── scoring_engine.py         # AI-powered problem classification
-│
-├── scrapers/                 # Multi-platform scraping modules
-│   ├── __init__.py
-│   ├── reddit_scraper.py
-│   ├── stackoverflow_scraper.py
-│   ├── hackernews_scraper.py
-│   └── github_scraper.py
-│
-├── alembic/                  # Database migrations
-│   ├── versions/             # Migration scripts
-│   ├── env.py
-│   └── alembic.ini
-│
-├── tests/                    # Test scripts
-│   ├── test_backend.py
-│   ├── test_scrapers.py
-│   ├── test_scrape_all_endpoint.py
-│   └── ...
-│
-├── docs/                     # Documentation
-│   ├── PROJECT_STATUS.md
-│   ├── TESTING_GUIDE.md
-│   └── ...
-│
-├── .env.example              # Environment template
-├── .gitignore                # Git ignore rules
-└── requirements.txt          # Python dependencies
-```
-
----
-
-## 🧪 Running Tests
-
-### Test Individual Scrapers
 ```bash
+VITE_API_URL=http://localhost:8000
+VITE_WS_URL=
+```
+
+For production:
+
+```bash
+VITE_API_URL=https://your-backend-domain.example
+VITE_WS_URL=
+```
+
+If `VITE_WS_URL` is empty, the frontend derives it from `VITE_API_URL` by converting `http` to `ws` and `https` to `wss`.
+
+## API Overview
+
+Authentication:
+- `POST /register`
+- `POST /login`
+- `GET /me`
+
+Problems:
+- `GET /problems`
+- `GET /problems/{problem_id}`
+- `GET /problems/trending`
+- `POST /scrape/all`
+
+Search and intelligence:
+- `GET /search`
+- `GET /search/hybrid`
+- `GET /search/semantic`
+- `GET /shelf`
+- `GET /shelf/{problem_id}/explain`
+- `GET /problems/{problem_id}/prototype`
+- `GET /analytics/shelf`
+
+Interests and collaboration:
+- `POST /interest`
+- `DELETE /interest/{problem_id}`
+- `GET /me/interests`
+- `GET /me/squads`
+- `POST /collaborate/request`
+- `POST /collaborate/accept`
+- `POST /collaborate/reject`
+- `GET /collaborate/{problem_id}`
+
+Squads:
+- `GET /squads`
+- `POST /squads`
+- `GET /squads/{squad_id}`
+- `POST /squads/{squad_id}/join`
+- `POST /squads/{squad_id}/accept/{user_id}`
+- `POST /squads/{squad_id}/reject/{user_id}`
+- `GET /squads/{squad_id}/messages`
+- `DELETE /squads/{squad_id}`
+- `POST /squads/{squad_id}/leave`
+- `WS /ws/squad/{squad_id}`
+
+Debug/health:
+- `GET /`
+- `GET /db-info`
+
+## Testing And Verification
+
+Useful local checks:
+
+```bash
+python -m py_compile main.py auth.py models.py schemas.py database.py
+python verify_db.py
+python test_backend.py
 python test_individual_scrapers.py
-```
-
-### Test Scrape All Endpoint
-```bash
 python test_scrape_all_endpoint.py
 ```
 
-### Test Backend API
+Seed reliable demo data without live scraper credentials:
+
 ```bash
-python test_backend.py
+python seed_demo_data.py
 ```
 
-### Test Database Connection
+Frontend:
+
 ```bash
-python test_pg_connection.py
+npm install
+npm run build
 ```
 
-### Verify Database Schema
-```bash
-python verify_db.py
-```
+## Honest Limitations
 
----
+- Live scraping depends on external APIs, credentials, quotas, and network availability.
+- Some older phase docs mention Firebase, Stripe, voting, and claims. The current recruiter-facing scope is the API and frontend flows listed above.
+- The app still needs a hosted demo, monitoring, and CI before it should be described as production deployed.
+- CPU-based AI/embedding workflows can be slow depending on model and dataset size.
 
-## 🛠️ Development Workflow
+## Portfolio Positioning
 
-### Creating New Database Migrations
-```bash
-# After modifying models.py
-alembic revision --autogenerate -m "Description of changes"
-
-# Review the generated migration file in alembic/versions/
-
-# Apply migration
-alembic upgrade head
-```
-
-### Scraping Problems
-```bash
-# Scrape from all sources (30 problems per run)
-curl -X POST http://127.0.0.1:8000/scrape/all
-
-# Check logs for details on fetched/inserted/skipped problems
-```
-
-### Adding Sample Data
-```bash
-python add_sample_problems.py
-```
-
----
-
-## 📊 API Endpoints
-
-### Search
-- `GET /search` - **Intent-Aware intelligent retrieval**
-  - **query**: Natural language or conversational query (e.g., "how to fix memory leak in nextjs")
-  - **limit**: Results limit (default 10)
-  - **Two-Stage Architecture**:
-    1. **Stage 1 (Recall)**: Broad candidate retrieval using Vector + Full-Text Search.
-    2. **Stage 2 (Precision)**: Intelligent re-ranking with intent-based boosts (title match, description locality, technical difficulty).
-  - **Features**: Normalization, Synonym expansion, Embedding caching, Search logging.
-- `GET /search/semantic` - **Research-grade pure semantic search**
-  - **query**: Search string (max 500 chars)
-  - **limit**: Results limit (default 10)
-  - **min_score**: Similarity threshold [0-1]
-  - **Returns**: Ranked results with latency metadata and normalized scores.
-
-### Authentication
-- `POST /register` - Create new user account
-- `POST /token` - Login and get JWT token
-
-### Problems
-- `GET /problems` - List all problems (with filters)
-- `GET /problems/{id}` - Get specific problem
-- `POST /scrape/all` - Trigger scraping from all sources
-
-### Collaboration
-- `POST /problems/{id}/vote` - Upvote/downvote problem
-- `POST /problems/{id}/claim` - Claim problem for solving
-- `GET /problems/{id}/collaborators` - List collaborators
-
-### Admin
-- `GET /db/info` - Database statistics
-
-Full API documentation available at: `http://127.0.0.1:8000/docs`
-
----
-
-## 📖 Additional Documentation
-
-- **[PROJECT_STATUS.md](docs/PROJECT_STATUS.md)** - Current development status and roadmap
-- **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Comprehensive testing instructions
-- **[PHASE3_1_MIGRATION.md](PHASE3_1_MIGRATION.md)** - Database migration guide
-- **[COLLABORATION_TESTING.md](COLLABORATION_TESTING.md)** - Team collaboration features
-
----
-
-## 🤝 Contributing
-
-1. Create a new branch: `git checkout -b feature/your-feature`
-2. Make your changes and test thoroughly
-3. Run linting: `black . && flake8`
-4. Commit: `git commit -m "Add your feature"`
-5. Push: `git push origin feature/your-feature`
-6. Create Pull Request
-
----
-
-## 🐛 Troubleshooting
-
-### "This site can't be reached" error
-- Ensure uvicorn is running: `uvicorn main:app --reload`
-- Check if port 8000 is available
-- Verify no firewall blocking
-
-### Database connection errors
-- Verify PostgreSQL is running: `pg_ctl status`
-- Check `DATABASE_URL` in `.env`
-- Ensure database exists: `psql -U postgres -l`
-
-### Import errors
-- Activate virtual environment
-- Reinstall dependencies: `pip install -r requirements.txt`
-
-### Migration errors
-- Check current migration: `alembic current`
-- Rollback if needed: `alembic downgrade -1`
-- Re-run: `alembic upgrade head`
-
----
-
-## 📝 License
-
-This project is licensed under the MIT License.
-
----
-
-## 📧 Contact & Support
-
-For questions, issues, or contributions, please contact the team or open an issue on GitHub.
-
-**Happy Problem Solving! 🚀**
+SolveStack is best presented as a full-stack engineering project focused on:
+- FastAPI REST API design.
+- PostgreSQL-ready data modeling.
+- Authenticated user workflows.
+- Search and AI-assisted ranking.
+- Real-time collaboration with WebSockets.
+- Practical deployment hardening and honest production tradeoffs.

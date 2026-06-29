@@ -29,6 +29,7 @@ import {
   Cell
 } from 'recharts';
 import { GoogleGenAI, Type } from "@google/genai";
+import { useUI } from '../contexts/UIContext';
 
 const Dashboard: React.FC = () => {
   const [problems, setProblems] = useState<Problem[]>([]);
@@ -48,6 +49,7 @@ const Dashboard: React.FC = () => {
 
   // Scraping State
   const [isScraping, setIsScraping] = useState(false);
+  const { toast } = useUI();
 
   useEffect(() => {
     const fetch = async () => {
@@ -69,6 +71,7 @@ const Dashboard: React.FC = () => {
           }
         } catch (error) {
           console.error("Auto-scraping failed:", error);
+          toast('Demo shelf loaded', { message: 'Live scraping was unavailable, so curated sample problems are shown.', variant: 'info' });
         } finally {
           setIsScraping(false);
         }
@@ -129,13 +132,13 @@ const Dashboard: React.FC = () => {
         setProblems(prev => [...newProblemsWithBadge, ...prev]);
 
         // Optional: show a small toast or notification if we had a library for it
-        console.log(`Added ${result.newProblems.length} new problems to the shelf.`);
+        toast('Problem shelf updated', { message: `Added ${result.newProblems.length} problems.`, variant: 'success' });
       } else {
-        console.log("No new problems found in this sync.");
+        toast('No new problems found', { message: 'The current shelf is already up to date.', variant: 'info' });
       }
     } catch (error) {
       console.error("Scraping failed:", error);
-      alert("Scraping failed. Please check the backend logs.");
+      toast('Sync failed', { message: 'Live scraping is unavailable right now. Demo data keeps the shelf usable.', variant: 'error' });
     } finally {
       setIsScraping(false);
     }

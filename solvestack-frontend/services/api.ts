@@ -1,7 +1,7 @@
 
 import { Problem, Difficulty, Source, SolutionType, User } from '../types';
-
-const API_BASE_URL = 'http://localhost:8000';
+import { API_BASE_URL, DEMO_MODE } from './config';
+import { demoProblems, demoSquads } from './demoData';
 
 // Helper to handle response errors
 const handleResponse = async (response: Response) => {
@@ -56,10 +56,14 @@ export const apiService = {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       }).then(handleResponse);
 
-      return data.map(mapItemToProblem);
+      const problems = data.map(mapItemToProblem);
+      if (DEMO_MODE && skip === 0 && problems.length === 0) {
+        return demoProblems.slice(0, limit);
+      }
+      return problems;
     } catch (error) {
       console.error("Failed to fetch problems:", error);
-      return [];
+      return DEMO_MODE && skip === 0 ? demoProblems.slice(0, limit) : [];
     }
   },
 
@@ -72,7 +76,7 @@ export const apiService = {
       return mapItemToProblem(item);
     } catch (error) {
       console.error(`Failed to fetch problem ${id}:`, error);
-      return undefined;
+      return DEMO_MODE ? demoProblems.find(problem => problem.id === id) : undefined;
     }
   },
 
@@ -282,10 +286,25 @@ export const apiService = {
       const data = await fetch(`${API_BASE_URL}/search/semantic?query=${encodeURIComponent(query)}&limit=20`)
         .then(handleResponse);
 
-      return (data.results || []).map(mapItemToProblem);
+      const results = (data.results || []).map(mapItemToProblem);
+      if (DEMO_MODE && results.length === 0) {
+        const normalized = query.toLowerCase();
+        return demoProblems.filter(problem =>
+          problem.title.toLowerCase().includes(normalized) ||
+          problem.description.toLowerCase().includes(normalized) ||
+          problem.techStack.some(tech => tech.toLowerCase().includes(normalized))
+        );
+      }
+      return results;
     } catch (error) {
       console.error("Semantic search failed:", error);
-      return [];
+      if (!DEMO_MODE) return [];
+      const normalized = query.toLowerCase();
+      return demoProblems.filter(problem =>
+        problem.title.toLowerCase().includes(normalized) ||
+        problem.description.toLowerCase().includes(normalized) ||
+        problem.techStack.some(tech => tech.toLowerCase().includes(normalized))
+      );
     }
   },
 
@@ -296,10 +315,13 @@ export const apiService = {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       }).then(handleResponse);
 
-      return data.map(mapItemToProblem);
+      const problems = data.map(mapItemToProblem);
+      return DEMO_MODE && problems.length === 0
+        ? [...demoProblems].sort((a, b) => b.interestedCount - a.interestedCount)
+        : problems;
     } catch (error) {
       console.error("Failed to fetch trending problems:", error);
-      return [];
+      return DEMO_MODE ? [...demoProblems].sort((a, b) => b.interestedCount - a.interestedCount) : [];
     }
   },
 
@@ -316,7 +338,12 @@ export const apiService = {
       };
     } catch (error) {
       console.error("Failed to trigger scraping:", error);
-      throw error;
+      if (!DEMO_MODE) throw error;
+      return {
+        message: 'Demo mode: loaded curated sample problems because live scraping is unavailable.',
+        totalScraped: demoProblems.length,
+        newProblems: demoProblems.map(problem => ({ ...problem, isNew: true }))
+      };
     }
   },
 
@@ -347,10 +374,10 @@ export const apiService = {
   getSquads: async (): Promise<any[]> => {
     try {
       const data = await fetch(`${API_BASE_URL}/squads`).then(handleResponse);
-      return data;
+      return DEMO_MODE && data.length === 0 ? demoSquads : data;
     } catch (error) {
       console.error("Failed to fetch squads:", error);
-      return [];
+      return DEMO_MODE ? demoSquads : [];
     }
   },
 

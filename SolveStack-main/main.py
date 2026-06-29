@@ -1,7 +1,3 @@
-from dotenv import load_dotenv
-import os
-load_dotenv()
-
 from fastapi import FastAPI, Depends, HTTPException, status, Header, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
@@ -9,6 +5,8 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 import os
 from dotenv import load_dotenv
+
+load_dotenv()
 
 from models import User, Problem, CollaborationGroup, CollaborationRequest, SquadJoinRequest, SquadMessage, Base, group_members
 from database import engine, get_db
@@ -47,9 +45,22 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS configuration
-# CORS configuration
-origins = ["*"]  # Allow all origins for development to fix IP-based access issues
+def _parse_csv_env(name: str, default: str = "") -> List[str]:
+    value = os.getenv(name, default)
+    return [item.strip().rstrip("/") for item in value.split(",") if item.strip()]
+
+
+environment = os.getenv("ENVIRONMENT", "development").lower()
+default_dev_origins = (
+    "http://localhost:3000,"
+    "http://127.0.0.1:3000,"
+    "http://localhost:5173,"
+    "http://127.0.0.1:5173"
+)
+origins = _parse_csv_env("FRONTEND_ORIGINS", os.getenv("CORS_ORIGINS", default_dev_origins))
+
+if environment in {"production", "prod"} and not origins:
+    raise RuntimeError("FRONTEND_ORIGINS must be set in production")
 
 app.add_middleware(
     CORSMiddleware,

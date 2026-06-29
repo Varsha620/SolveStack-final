@@ -2,9 +2,13 @@ import React from 'react';
 import { Terminal, Settings, LogOut, ChevronRight, Activity, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useUI } from '../contexts/UIContext';
 
 const Profile: React.FC = () => {
   const { user, isAuthenticated, logout, refreshUser } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useUI();
 
   React.useEffect(() => {
     if (isAuthenticated) {
@@ -25,7 +29,8 @@ const Profile: React.FC = () => {
 
   const logoutAndRedirect = () => {
     logout();
-    window.location.href = '/';
+    toast('Signed out', { message: 'Your local session has been cleared.', variant: 'success' });
+    navigate('/');
   };
 
   return (

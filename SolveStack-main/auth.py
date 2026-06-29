@@ -15,9 +15,20 @@ from schemas import TokenData
 load_dotenv()
 
 # Configuration
-SECRET_KEY = os.getenv('SECRET_KEY', 'your-secret-key-change-this-in-production')
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'development').lower()
+DEFAULT_DEV_SECRET_KEY = 'dev-only-secret-key-change-before-production'
+SECRET_KEY = os.getenv('SECRET_KEY')
 ALGORITHM = os.getenv('ALGORITHM', 'HS256')
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES', 30))
+
+if ENVIRONMENT in {'production', 'prod'}:
+    if not SECRET_KEY or SECRET_KEY in {
+        'your-secret-key-change-this-in-production',
+        DEFAULT_DEV_SECRET_KEY,
+    }:
+        raise RuntimeError('SECRET_KEY must be set to a strong unique value in production')
+else:
+    SECRET_KEY = SECRET_KEY or DEFAULT_DEV_SECRET_KEY
 
 # Password hashing - Using pbkdf2_sha256 as fallback if bcrypt environment is broken
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")

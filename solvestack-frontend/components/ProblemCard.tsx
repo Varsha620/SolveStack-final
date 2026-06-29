@@ -4,9 +4,11 @@ import { Problem, Difficulty } from '../types';
 import { PLATFORM_ICONS, DIFFICULTY_COLORS } from '../constants';
 import { Heart, Users, ExternalLink, ArrowUpRight, Sparkles, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api';
 import InferenceOverlay from './InferenceOverlay';
+import { useUI } from '../contexts/UIContext';
 
 interface ProblemCardProps {
   problem: Problem;
@@ -14,6 +16,8 @@ interface ProblemCardProps {
 
 const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
   const { isAuthenticated, refreshUser } = useAuth();
+  const { toast, confirm } = useUI();
+  const navigate = useNavigate();
   // Note: ProblemCard is used in Dashboard which is under AuthProvider (App.tsx)
 
   // We need local state to track interest if the backend doesn't return "isInterested" for the user yet
@@ -38,9 +42,13 @@ const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
     e.stopPropagation();
 
     if (!isAuthenticated) {
-      // Redirect to login or show alert
-      if (confirm("You need to be logged in to track interests. Go to login?")) {
-        window.location.href = '#/login';
+      const shouldLogin = await confirm({
+        title: 'Sign in required',
+        message: 'Create or sign in to an account to save problems to your interest shelf.',
+        confirmLabel: 'Go to login',
+      });
+      if (shouldLogin) {
+        navigate('/login');
       }
       return;
     }
@@ -66,6 +74,7 @@ const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
       }
     } catch (error) {
       console.error("Failed to toggle interest", error);
+      toast('Could not update interest', { message: 'Please try again in a moment.', variant: 'error' });
     } finally {
       setLoadingInterest(false);
     }
@@ -86,6 +95,7 @@ const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
       if (proto) setPrototypeData(proto);
     } catch (error) {
       console.error("Failed to fetch intelligence", error);
+      toast('Could not load intelligence', { message: 'The backend did not return an explanation for this problem.', variant: 'error' });
     } finally {
       setOverlayLoading(false);
     }

@@ -24,6 +24,7 @@ import {
 import { GoogleGenAI, Type } from "@google/genai";
 import { useAuth } from '../contexts/AuthContext';
 import InferenceOverlay from '../components/InferenceOverlay';
+import { useUI } from '../contexts/UIContext';
 
 // Helper for clock since Lucide clock was used but not imported in detail
 const Clock: React.FC<{ className?: string }> = ({ className }) => (
@@ -33,6 +34,7 @@ const Clock: React.FC<{ className?: string }> = ({ className }) => (
 const ProblemDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { isAuthenticated, refreshUser } = useAuth();
+  const { toast, confirm } = useUI();
   const [problem, setProblem] = useState<Problem | null>(null);
   const [loading, setLoading] = useState(true);
   const [aiInsight, setAiInsight] = useState<string>('');
@@ -110,7 +112,7 @@ const ProblemDetail: React.FC = () => {
 
   const handleToggleInterest = async () => {
     if (!isAuthenticated) {
-      alert("Please sign in to favorite problems");
+      toast('Sign in required', { message: 'You need an account to save interested problems.', variant: 'info' });
       return;
     }
     if (!problem || loadingInterest) return;
@@ -140,13 +142,17 @@ const ProblemDetail: React.FC = () => {
   };
 
   const handleJoinSquad = async (squadId: number) => {
-    if (!isAuthenticated) { alert("Please sign in to join squads"); return; }
+    if (!isAuthenticated) {
+      toast('Sign in required', { message: 'You need an account to join squads.', variant: 'info' });
+      return;
+    }
     setJoiningId(squadId);
     try {
       await apiService.joinSquad(squadId);
       await fetchProblemSquads();
+      toast('Join request sent', { message: 'The squad leader can now review your request.', variant: 'success' });
     } catch (e: any) {
-      alert(e.message || 'Failed to send join request');
+      toast('Could not send request', { message: e.message || 'Please try again later.', variant: 'error' });
     } finally {
       setJoiningId(null);
     }
@@ -161,30 +167,45 @@ const ProblemDetail: React.FC = () => {
       await fetchProblemSquads();
       setShowCreateSquad(false);
       setCreateForm({ name: '', description: '' });
+      toast('Squad created', { message: 'Your squad is now visible for this problem.', variant: 'success' });
     } catch (e: any) {
-      alert(e.message || 'Failed to create squad');
+      toast('Could not create squad', { message: e.message || 'Please check the form and try again.', variant: 'error' });
     } finally {
       setCreatingSquad(false);
     }
   };
 
   const handleDeleteSquad = async (squadId: number) => {
-    if (!window.confirm("Are you sure you want to permanently delete this squad? This action cannot be undone.")) return;
+    const shouldDelete = await confirm({
+      title: 'Delete squad?',
+      message: 'This removes the squad and its chat history. This action cannot be undone.',
+      confirmLabel: 'Delete squad',
+      tone: 'danger',
+    });
+    if (!shouldDelete) return;
     try {
       await apiService.deleteSquad(squadId);
       await fetchProblemSquads();
+      toast('Squad deleted', { variant: 'success' });
     } catch (e: any) {
-      alert(e.message || 'Failed to delete squad');
+      toast('Could not delete squad', { message: e.message || 'Please try again later.', variant: 'error' });
     }
   };
 
   const handleLeaveSquad = async (squadId: number) => {
-    if (!window.confirm("Are you sure you want to leave this squad?")) return;
+    const shouldLeave = await confirm({
+      title: 'Leave squad?',
+      message: 'You will lose access to its member chat unless you rejoin later.',
+      confirmLabel: 'Leave squad',
+      tone: 'danger',
+    });
+    if (!shouldLeave) return;
     try {
       await apiService.leaveSquad(squadId);
       await fetchProblemSquads();
+      toast('Left squad', { variant: 'success' });
     } catch (e: any) {
-      alert(e.message || 'Failed to leave squad');
+      toast('Could not leave squad', { message: e.message || 'Please try again later.', variant: 'error' });
     }
   };
 
@@ -203,6 +224,7 @@ const ProblemDetail: React.FC = () => {
       if (proto) setPrototypeData(proto);
     } catch (error) {
       console.error("Failed to fetch intelligence", error);
+      toast('Could not load intelligence', { message: 'The backend did not return this insight.', variant: 'error' });
     } finally {
       setOverlayLoading(false);
     }

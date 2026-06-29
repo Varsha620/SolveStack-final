@@ -5,6 +5,7 @@ import {
   Users, ArrowLeft, Plus, MessageSquare, Loader2, Check, X,
   Crown, Clock, ChevronRight, Search, Zap, Send, Trash2, LogOut
 } from 'lucide-react';
+import { useUI } from '../contexts/UIContext';
 
 interface Squad {
   id: number;
@@ -28,6 +29,7 @@ const Squads: React.FC = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [joiningId, setJoiningId] = useState<number | null>(null);
   const [actionLoading, setActionLoading] = useState<{ [key: string]: boolean }>({});
+  const { toast, confirm } = useUI();
 
   // Create form state
   const [problems, setProblems] = useState<any[]>([]);
@@ -80,8 +82,9 @@ const Squads: React.FC = () => {
     try {
       await apiService.joinSquad(squadId);
       await fetchSquads();
+      toast('Join request sent', { message: 'The squad leader can now review your request.', variant: 'success' });
     } catch (e: any) {
-      alert(e.message || 'Failed to send join request');
+      toast('Could not send request', { message: e.message || 'Please try again later.', variant: 'error' });
     } finally {
       setJoiningId(null);
     }
@@ -123,37 +126,52 @@ const Squads: React.FC = () => {
       await fetchSquads();
       setShowCreate(false);
       setCreateForm({ problem_id: '', name: '', description: '' });
+      toast('Squad created', { message: 'Opening the squad chat now.', variant: 'success' });
       navigate(`/squads/${result.id}/chat`);
     } catch (e: any) {
-      alert(e.message || 'Failed to create squad');
+      toast('Could not create squad', { message: e.message || 'Please check the form and try again.', variant: 'error' });
     } finally {
       setCreating(false);
     }
   };
 
   const handleDelete = async (squadId: number) => {
-    if (!window.confirm("Are you sure you want to delete this squad? This action cannot be undone and all chat history will be lost.")) return;
+    const shouldDelete = await confirm({
+      title: 'Delete squad?',
+      message: 'This removes the squad and all chat history. This action cannot be undone.',
+      confirmLabel: 'Delete squad',
+      tone: 'danger',
+    });
+    if (!shouldDelete) return;
     const key = `delete-${squadId}`;
     setActionLoading(prev => ({ ...prev, [key]: true }));
     try {
       await apiService.deleteSquad(squadId);
       await fetchSquads();
+      toast('Squad deleted', { variant: 'success' });
     } catch (e: any) {
-      alert(e.message || 'Failed to delete squad');
+      toast('Could not delete squad', { message: e.message || 'Please try again later.', variant: 'error' });
     } finally {
       setActionLoading(prev => ({ ...prev, [key]: false }));
     }
   };
 
   const handleLeave = async (squadId: number) => {
-    if (!window.confirm("Are you sure you want to leave this squad?")) return;
+    const shouldLeave = await confirm({
+      title: 'Leave squad?',
+      message: 'You will lose access to its chat unless the leader accepts you again later.',
+      confirmLabel: 'Leave squad',
+      tone: 'danger',
+    });
+    if (!shouldLeave) return;
     const key = `leave-${squadId}`;
     setActionLoading(prev => ({ ...prev, [key]: true }));
     try {
       await apiService.leaveSquad(squadId);
       await fetchSquads();
+      toast('Left squad', { variant: 'success' });
     } catch (e: any) {
-      alert(e.message || 'Failed to leave squad');
+      toast('Could not leave squad', { message: e.message || 'Please try again later.', variant: 'error' });
     } finally {
       setActionLoading(prev => ({ ...prev, [key]: false }));
     }
