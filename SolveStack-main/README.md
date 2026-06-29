@@ -22,10 +22,9 @@ Implemented and working locally:
 - Environment-based frontend/backend configuration for deployment.
 
 In progress or intentionally optional:
-- Public deployment to Render/Railway/Vercel/Netlify.
+- Backend deployment to Render/Railway/Fly.io and hosted PostgreSQL.
 - Production monitoring and logging.
 - CI pipeline.
-- Hosted demo URL.
 - Payment/subscription features. Stripe fields exist in the data model, but payment flows are not implemented.
 - Firebase. Earlier docs mention Firebase, but current chat uses FastAPI WebSockets and database-persisted squad messages.
 
@@ -46,6 +45,12 @@ In progress or intentionally optional:
 - Search/AI: sentence-transformer/embedding support, engineering-impact scoring, reranking and explanation services.
 - Frontend: React, Vite, TypeScript, Tailwind CSS, lucide-react.
 - Tooling: pytest-style scripts, Postman-friendly API, Docker-ready dependency structure.
+
+## Live Demo
+
+Frontend demo: `https://varsha620.github.io/SolveStack-final/`
+
+The live demo uses frontend fallback data when a hosted backend is not connected, so reviewers can still explore the product flow.
 
 ## Quick Start
 
@@ -202,7 +207,7 @@ npm run build
 
 - Live scraping depends on external APIs, credentials, quotas, and network availability.
 - Some older phase docs mention Firebase, Stripe, voting, and claims. The current recruiter-facing scope is the API and frontend flows listed above.
-- The app still needs a hosted demo, monitoring, and CI before it should be described as production deployed.
+- The app still needs hosted backend deployment, monitoring, and CI before it should be described as full-stack production deployed.
 - CPU-based AI/embedding workflows can be slow depending on model and dataset size.
 
 ## Portfolio Positioning

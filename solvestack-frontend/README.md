@@ -19,8 +19,12 @@ Implemented:
 Not currently implemented:
 - Payment/subscription UI.
 - Firebase chat. Chat uses the FastAPI WebSocket backend.
-- A hosted demo URL. Deployment is the next portfolio polish step.
+- Hosted backend connection. The live frontend demo uses fallback data unless `VITE_API_URL` points to a deployed backend.
 - More guided onboarding/demo walkthrough copy for first-time reviewers.
+
+## Live Demo
+
+Frontend demo: `https://varsha620.github.io/SolveStack-final/`
 
 ## Tech Stack
 

@@ -89,11 +89,11 @@ Completed deployment preparation:
 - Frontend production build verified after Tailwind/PostCSS setup.
 - Frontend demo mode added via `VITE_DEMO_MODE=fallback`.
 - Backend demo seed script added via `python seed_demo_data.py`.
+- Frontend deployed to GitHub Pages at `https://varsha620.github.io/SolveStack-final/`.
 
-Remaining before calling it production deployed:
+Remaining before calling the full stack production deployed:
 
 - Deploy backend to Render, Railway, Fly.io, or similar.
-- Deploy frontend to Vercel, Netlify, or similar.
 - Provision hosted PostgreSQL.
 - Run migrations against hosted database.
 - Add basic CI for backend compile/tests and frontend build.
