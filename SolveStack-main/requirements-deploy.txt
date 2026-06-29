@@ -1,0 +1,21 @@
+# Lightweight production/demo API dependencies.
+# Use requirements.txt for the full local AI/scraping stack.
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.6
+
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.9
+alembic>=1.13.0
+
+python-jose[cryptography]>=3.3.0
+passlib>=1.7.4
+python-dotenv>=1.0.0
+email-validator>=2.0.0
+
+requests>=2.28.1,<2.33.0
+praw==7.8.1
+pygithub>=2.1.1
+tqdm==4.67.1
+regex
+groq>=0.9.0

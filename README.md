@@ -4,7 +4,8 @@ Full-stack problem discovery and collaboration platform for finding real-world t
 
 [Live frontend demo](https://varsha620.github.io/SolveStack-final/)  
 [Backend README](SolveStack-main/README.md)  
-[Frontend README](solvestack-frontend/README.md)
+[Frontend README](solvestack-frontend/README.md)  
+[Deployment Guide](DEPLOYMENT.md)
 
 ## What This Project Shows
 
@@ -44,6 +45,7 @@ Implemented:
 - In-app toast and confirmation modal system.
 - Demo fallback data for reliable portfolio viewing.
 - GitHub Pages frontend deployment.
+- Render/Railway-ready backend deployment files.
 
 Not yet fully deployed:
 
@@ -89,6 +91,8 @@ https://varsha620.github.io/SolveStack-final/
 ```
 
 The backend is prepared for deployment to a service such as Render, Railway, or Fly.io with a hosted PostgreSQL database.
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for backend hosting steps.
 
 ## Portfolio Note
 

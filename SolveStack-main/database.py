@@ -20,8 +20,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Get database URL from environment
+# Get database URL from environment.
+# Some hosts still expose postgres:// URLs; SQLAlchemy expects postgresql://.
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./solvestack.db")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 if DATABASE_URL.startswith("postgresql"):
     # Production: PostgreSQL
@@ -29,8 +32,8 @@ if DATABASE_URL.startswith("postgresql"):
     engine = create_engine(
         DATABASE_URL,
         pool_pre_ping=True,
-        pool_size=10,
-        max_overflow=20,
+        pool_size=int(os.getenv("DB_POOL_SIZE", 5)),
+        max_overflow=int(os.getenv("DB_MAX_OVERFLOW", 10)),
         echo=False
     )
 else:

@@ -124,7 +124,8 @@ class Problem(Base):
         
     # Full-Text Search Support (PostgreSQL)
     import os
-    if os.getenv("DATABASE_URL", "sqlite").startswith("postgresql"):
+    db_url = os.getenv("DATABASE_URL", "sqlite")
+    if db_url.startswith(("postgresql", "postgres://")):
         search_vector = Column(TSVECTOR)
     
     # Relationships

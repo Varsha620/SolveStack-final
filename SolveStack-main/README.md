@@ -45,6 +45,7 @@ In progress or intentionally optional:
 - Search/AI: sentence-transformer/embedding support, engineering-impact scoring, reranking and explanation services.
 - Frontend: React, Vite, TypeScript, Tailwind CSS, lucide-react.
 - Tooling: pytest-style scripts, Postman-friendly API, Docker-ready dependency structure.
+- Deployment: `requirements-deploy.txt`, `Procfile`, and root-level `render.yaml` for lightweight backend hosting.
 
 ## Live Demo
 
@@ -201,6 +202,13 @@ Frontend:
 ```bash
 npm install
 npm run build
+```
+
+Deployment-oriented backend install:
+
+```bash
+pip install -r requirements-deploy.txt
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
 ## Honest Limitations

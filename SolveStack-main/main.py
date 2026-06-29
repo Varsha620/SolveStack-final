@@ -45,6 +45,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
+@app.on_event("startup")
+def seed_demo_data_on_startup():
+    if os.getenv("SEED_DEMO_DATA", "false").lower() not in {"1", "true", "yes"}:
+        return
+    try:
+        from seed_demo_data import seed_demo_data
+        seed_demo_data()
+    except Exception as e:
+        print(f"[DEMO SEED] Skipped demo data seed: {e}")
+
 def _parse_csv_env(name: str, default: str = "") -> List[str]:
     value = os.getenv(name, default)
     return [item.strip().rstrip("/") for item in value.split(",") if item.strip()]

@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import datetime
 
-from embedding_service import get_embedding_service
 from query_processing_service import get_query_processor
 from retrieval_service import get_retrieval_service
 from reranking_service import get_reranking_service
@@ -14,10 +13,32 @@ logger = logging.getLogger(__name__)
 
 class HybridSearchService:
     def __init__(self):
-        self.embedding_service = get_embedding_service()
+        self.embedding_service = None
+        try:
+            from embedding_service import get_embedding_service
+            self.embedding_service = get_embedding_service()
+        except Exception as e:
+            logger.warning(f"Embedding search unavailable; falling back to keyword search. Reason: {e}")
         self.query_processor = get_query_processor()
         self.retrieval_service = get_retrieval_service()
         self.reranking_service = get_reranking_service()
+
+    def _keyword_fallback(self, db: Session, query: str, limit: int):
+        pattern = f"%{query.strip()}%"
+        from models import Problem
+        problems = db.query(Problem).filter(
+            (Problem.title.ilike(pattern)) |
+            (Problem.description.ilike(pattern)) |
+            (Problem.suggested_tech.ilike(pattern))
+        ).order_by(Problem.engineering_impact_score.desc(), Problem.scraped_at.desc()).limit(limit).all()
+        for problem in problems:
+            problem.search_scores = {
+                "semantic": 0.0,
+                "keyword": 1.0,
+                "tag": 0.0,
+                "final": round((problem.engineering_impact_score or 0) / 100, 3)
+            }
+        return problems
 
     def log_search(self, db: Session, query: str, results_count: int, latency_ms: float):
         """Log search query performance and results"""
@@ -46,6 +67,17 @@ class HybridSearchService:
         processed = self.query_processor.process_query(query)
         semantic_query = processed["semantic"]
         keyword_query = processed["keyword"]
+
+        if self.embedding_service is None:
+            final_results = self._keyword_fallback(db, keyword_query or query, limit)
+            total_latency_ms = (time.perf_counter() - start_time) * 1000
+            self.log_search(db, query, len(final_results), total_latency_ms)
+            return final_results, {
+                "latency_ms": round(total_latency_ms, 2),
+                "stage1_candidates": len(final_results),
+                "reranking": "keyword_fallback",
+                "processed_query": processed
+            }
         
         # --- Stage 1: Broad Candidate Retrieval ---
         # Get semantic embedding (with caching)
