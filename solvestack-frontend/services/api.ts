@@ -17,6 +17,17 @@ const handleResponse = async (response: Response) => {
   return response.json();
 };
 
+const mapDifficultyLevel = (item: any): Difficulty => {
+  if (item.difficulty_level === 1) return Difficulty.BEGINNER;
+  if (item.difficulty_level === 2) return Difficulty.INTERMEDIATE;
+  if (item.difficulty_level === 3) return Difficulty.ADVANCED;
+
+  const score = item.engineering_impact_score || 0;
+  if (score < 45) return Difficulty.BEGINNER;
+  if (score > 72) return Difficulty.ADVANCED;
+  return Difficulty.INTERMEDIATE;
+};
+
 // Map backend problem item to Frontend Problem type
 const mapItemToProblem = (item: any): Problem => ({
   id: String(item.ps_id),
@@ -25,9 +36,7 @@ const mapItemToProblem = (item: any): Problem => ({
   humanExplanation: item.humanized_explanation || item.description,
   techStack: item.tags ? (Array.isArray(item.tags) ? item.tags : [item.tags]) :
     (item.suggested_tech ? (Array.isArray(item.suggested_tech) ? item.suggested_tech : item.suggested_tech.split(',').map((t: string) => t.trim())) : []),
-  difficulty: (item.engineering_impact_score || 0) < 40 ? Difficulty.BEGINNER :
-    (item.engineering_impact_score || 0) > 70 ? Difficulty.ADVANCED :
-      Difficulty.INTERMEDIATE,
+  difficulty: mapDifficultyLevel(item),
   estimatedEffort: 'Unknown',
   source: (item.source || '').includes('github') ? Source.GITHUB :
     (item.source || '').includes('hackernews') ? Source.HACKERNEWS :

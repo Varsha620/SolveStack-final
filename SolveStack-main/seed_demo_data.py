@@ -30,6 +30,7 @@ DEMO_PROBLEMS = [
         "reference_link": "https://demo.solvestack.local/problems/incident-memory",
         "tags": ["fastapi", "postgresql", "search", "incident-management"],
         "engineering_impact_score": 86,
+        "difficulty_level": 3,
         "technical_depth_score": 0.84,
         "industry_impact_score": 0.82,
         "cognitive_complexity_score": 0.76,
@@ -46,6 +47,7 @@ DEMO_PROBLEMS = [
         "reference_link": "https://demo.solvestack.local/problems/latency-monitor",
         "tags": ["fastapi", "observability", "postgresql", "dashboard"],
         "engineering_impact_score": 78,
+        "difficulty_level": 2,
         "technical_depth_score": 0.72,
         "industry_impact_score": 0.74,
         "cognitive_complexity_score": 0.66,
@@ -62,6 +64,7 @@ DEMO_PROBLEMS = [
         "reference_link": "https://demo.solvestack.local/problems/resume-recommender",
         "tags": ["react", "python", "embeddings", "career-tools"],
         "engineering_impact_score": 81,
+        "difficulty_level": 1,
         "technical_depth_score": 0.7,
         "industry_impact_score": 0.88,
         "cognitive_complexity_score": 0.69,
@@ -78,6 +81,7 @@ DEMO_PROBLEMS = [
         "reference_link": "https://demo.solvestack.local/problems/offline-checklists",
         "tags": ["offline-first", "sync", "fastapi", "indexeddb"],
         "engineering_impact_score": 74,
+        "difficulty_level": 3,
         "technical_depth_score": 0.81,
         "industry_impact_score": 0.7,
         "cognitive_complexity_score": 0.79,
@@ -311,11 +315,13 @@ for offset, item in enumerate(ADDITIONAL_DEMO_BLUEPRINTS, start=1):
         .replace(" ", "_")
     )
     score = 72 + ((offset * 7) % 22)
+    difficulty_level = [1, 2, 3, 2, 1, 3][(offset - 1) % 6]
     DEMO_PROBLEMS.append({
         **item,
         "source_id": f"demo_{slug[:54]}",
         "reference_link": f"https://demo.solvestack.local/problems/{slug.replace('_', '-')[:72]}",
         "engineering_impact_score": score,
+        "difficulty_level": difficulty_level,
         "technical_depth_score": round(0.58 + ((offset * 5) % 33) / 100, 2),
         "industry_impact_score": round(0.6 + ((offset * 7) % 31) / 100, 2),
         "cognitive_complexity_score": round(0.55 + ((offset * 11) % 35) / 100, 2),
@@ -354,6 +360,16 @@ def seed_demo_data() -> None:
         for index, item in enumerate(DEMO_PROBLEMS):
             exists = db.query(Problem).filter(Problem.reference_link == item["reference_link"]).first()
             if exists:
+                exists.difficulty_level = item.get("difficulty_level", exists.difficulty_level or 2)
+                exists.difficulty_score = item["engineering_impact_score"] / 100
+                exists.technical_depth_score = item["technical_depth_score"]
+                exists.industry_impact_score = item["industry_impact_score"]
+                exists.cognitive_complexity_score = item["cognitive_complexity_score"]
+                exists.signal_quality_score = item["signal_quality_score"]
+                exists.engineering_impact_score = item["engineering_impact_score"]
+                exists.upvotes = item["upvotes"]
+                exists.comment_count = item["comment_count"]
+                exists.engagement_score = float(item["upvotes"] + item["comment_count"])
                 seeded_problems.append(exists)
                 continue
 
@@ -378,7 +394,7 @@ def seed_demo_data() -> None:
                 scraped_at=datetime.utcnow() - timedelta(days=index),
                 cleaned_at=datetime.utcnow(),
                 difficulty_score=item["engineering_impact_score"] / 100,
-                difficulty_level=3 if item["engineering_impact_score"] >= 80 else 2,
+                difficulty_level=item.get("difficulty_level", 2),
                 upvotes=item["upvotes"],
                 comment_count=item["comment_count"],
                 engagement_score=float(item["upvotes"] + item["comment_count"]),

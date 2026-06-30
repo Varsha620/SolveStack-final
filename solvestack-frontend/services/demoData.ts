@@ -28,7 +28,7 @@ const baseDemoProblems: Problem[] = [
     description: 'A lightweight observability dashboard that tracks endpoint latency, error rate, slow queries, and deploy-to-deploy regressions for small backend projects.',
     humanExplanation: 'This is a strong portfolio fit because it connects backend engineering, database design, metrics, and production awareness.',
     techStack: ['FastAPI', 'PostgreSQL', 'Recharts', 'Docker'],
-    difficulty: Difficulty.INTERMEDIATE,
+    difficulty: Difficulty.BEGINNER,
     estimatedEffort: '1-2 weeks',
     source: Source.STACKOVERFLOW,
     sourceUrl: 'https://stackoverflow.com/questions/tagged/fastapi',
@@ -48,7 +48,7 @@ const baseDemoProblems: Problem[] = [
     description: 'Given a resume and target role, recommend project ideas that fill skill gaps and produce measurable portfolio bullets.',
     humanExplanation: 'A focused AI-assisted full-stack project that can demonstrate parsing, ranking, UX, and practical career value.',
     techStack: ['React', 'Python', 'Embeddings', 'PostgreSQL'],
-    difficulty: Difficulty.INTERMEDIATE,
+    difficulty: Difficulty.BEGINNER,
     estimatedEffort: '2 weeks',
     source: Source.HACKERNEWS,
     sourceUrl: 'https://news.ycombinator.com/',
@@ -108,7 +108,7 @@ const baseDemoProblems: Problem[] = [
     description: 'Small teams often rotate secrets manually. Build a dashboard that tracks owners, expiry windows, audit events, and rotation playbooks.',
     humanExplanation: 'This fits backend/security positioning well: auth, audit logs, PostgreSQL schemas, and operational UX.',
     techStack: ['FastAPI', 'JWT', 'PostgreSQL', 'Security'],
-    difficulty: Difficulty.INTERMEDIATE,
+    difficulty: Difficulty.BEGINNER,
     estimatedEffort: '1-2 weeks',
     source: Source.STACKOVERFLOW,
     sourceUrl: 'https://stackoverflow.com/questions/tagged/security',
@@ -348,14 +348,27 @@ export const demoProblems: Problem[] = [
   ...baseDemoProblems,
   ...additionalDemoProblems.map((problem, index): Problem => {
     const score = 72 + ((index * 7) % 22);
+    const difficultyPattern = [
+      Difficulty.BEGINNER,
+      Difficulty.INTERMEDIATE,
+      Difficulty.ADVANCED,
+      Difficulty.INTERMEDIATE,
+      Difficulty.BEGINNER,
+      Difficulty.ADVANCED,
+    ];
+    const difficulty = difficultyPattern[index % difficultyPattern.length];
     return {
       id: String(9010 + index),
       title: problem.title,
       description: problem.description,
       humanExplanation: problem.humanExplanation,
       techStack: problem.techStack,
-      difficulty: score >= 84 ? Difficulty.ADVANCED : Difficulty.INTERMEDIATE,
-      estimatedEffort: index % 3 === 0 ? '2-3 weeks' : index % 3 === 1 ? '1-2 weeks' : '3-4 weeks',
+      difficulty,
+      estimatedEffort: difficulty === Difficulty.BEGINNER
+        ? '4-7 days'
+        : difficulty === Difficulty.INTERMEDIATE
+          ? '1-2 weeks'
+          : '3-4 weeks',
       source: problem.source,
       sourceUrl: sourceUrls[problem.source],
       solutionType: SolutionType.SOFTWARE,

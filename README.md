@@ -39,6 +39,7 @@ Junior developers often build generic clone projects because it is hard to find 
 - JWT authentication with protected user flows.
 - Problem shelf with filtering, semantic-style search, and engineering impact scoring.
 - Intent-aware retrieval endpoints for hybrid and semantic search workflows.
+- Engineering Impact Scoring engine that separates project value from implementation difficulty.
 - Multi-source scraper architecture for GitHub, Reddit, Hacker News, and Stack Overflow style sources.
 - Demo-safe seeded data for reliable portfolio reviews.
 - Interest tracking so users can save problems they want to build.
@@ -85,6 +86,19 @@ flowchart LR
 | Database | SQLite for local dev, PostgreSQL for hosted deployment |
 | Search / Ranking | Hybrid search, semantic-style retrieval, keyword fallback, engineering impact scoring |
 | Deployment | GitHub Pages, Render Web Service, Render Postgres |
+
+## Scoring Engine
+
+SolveStack uses an Engineering Impact Scoring engine to rank ideas by portfolio and real-world value, not just by popularity. The score is calculated from four signals:
+
+| Signal | What it captures |
+| --- | --- |
+| Technical depth | Architecture, scaling, performance, data modeling, async work, and system-design signals |
+| Industry impact | Production relevance, security, cost, compliance, reliability, and customer value |
+| Cognitive complexity | Tradeoffs, ambiguity, design decisions, and problem-solving depth |
+| Signal quality | Specificity, technical density, and whether the problem has enough detail to build from |
+
+The app also tracks **difficulty** separately as Beginner, Intermediate, or Advanced. That distinction matters: a project can be beginner-friendly but still valuable, or advanced because it requires deeper architecture and operational design.
 
 ## API Overview
 
