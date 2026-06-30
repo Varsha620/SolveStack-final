@@ -2,7 +2,7 @@
 
 Full-stack problem discovery and collaboration platform for turning real developer pain points into portfolio-worthy project ideas.
 
-[Live Frontend](https://varsha620.github.io/SolveStack-final/)<br>
+[Live Now](https://varsha620.github.io/SolveStack-final/) (Can use demo credentials provided for viewing the demo version)<br></br>
 Backend API: [https://solvestack-final.onrender.com](https://solvestack-final.onrender.com/)<br>
 [Deployment Guide](DEPLOYMENT.md)<br>
 [Backend README](SolveStack-main/README.md)  
