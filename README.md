@@ -25,7 +25,7 @@ The demo seed creates 30+ curated problems, pre-selected interests, active squad
    Open the dashboard, browse seeded problems, compare impact scores, and inspect a problem detail page.
 
 2. Search by intent
-   Try searches such as `FastAPI observability`, `resume projects`, or `offline sync` to see the problem retrieval flow.
+   Try searches such as `FastAPI observability`, `resume projects`, or `offline sync` to see the semantic-style retrieval and ranking flow.
 
 3. Join the collaboration loop
    Sign in with the demo account, open Squads, inspect the seeded squad, and view the squad chat flow.
@@ -37,7 +37,8 @@ Junior developers often build generic clone projects because it is hard to find 
 ## Features
 
 - JWT authentication with protected user flows.
-- Problem shelf with filtering, search, and engineering impact scoring.
+- Problem shelf with filtering, semantic-style search, and engineering impact scoring.
+- Intent-aware retrieval endpoints for hybrid and semantic search workflows.
 - Multi-source scraper architecture for GitHub, Reddit, Hacker News, and Stack Overflow style sources.
 - Demo-safe seeded data for reliable portfolio reviews.
 - Interest tracking so users can save problems they want to build.
@@ -48,13 +49,17 @@ Junior developers often build generic clone projects because it is hard to find 
 
 ## Screenshots
 
-| Area | Placeholder |
-| --- | --- |
-| Landing / Dashboard | Add `docs/screenshots/dashboard.png` |
-| Problem Detail | Add `docs/screenshots/problem-detail.png` |
-| Squads / Chat | Add `docs/screenshots/squad-chat.png` |
+### Dashboard / Problem Shelf
 
-Suggested screenshot flow: dashboard with seeded cards, one detailed problem page, and the demo squad chat page.
+![SolveStack dashboard with seeded problem cards](docs/screenshots/dashboard.png)
+
+### Problem Detail
+
+![SolveStack problem detail view with scoring and project context](docs/screenshots/problem-detail.png)
+
+### Squad Chat
+
+![SolveStack squad chat and collaboration view](docs/screenshots/squad-chat.png)
 
 ## Architecture
 
@@ -64,7 +69,7 @@ flowchart LR
     Frontend --> API["FastAPI Backend\nRender Web Service"]
     API --> Auth["JWT Auth"]
     API --> DB["PostgreSQL\nRender Postgres"]
-    API --> Search["Search + Scoring Services"]
+    API --> Search["Hybrid + Semantic Search\nScoring Services"]
     API --> Scrapers["Community Scrapers"]
     API --> WS["WebSocket Squad Chat"]
     Scrapers --> Sources["GitHub / Reddit / HN / Stack Overflow"]
@@ -78,7 +83,7 @@ flowchart LR
 | Backend | FastAPI, SQLAlchemy, Pydantic, Uvicorn |
 | Auth | JWT, passlib password hashing |
 | Database | SQLite for local dev, PostgreSQL for hosted deployment |
-| Search / Ranking | Keyword fallback search, scoring services, optional embedding path |
+| Search / Ranking | Hybrid search, semantic-style retrieval, keyword fallback, engineering impact scoring |
 | Deployment | GitHub Pages, Render Web Service, Render Postgres |
 
 ## API Overview
@@ -92,8 +97,9 @@ GET    /me
 GET    /problems
 GET    /problems/{problem_id}
 GET    /problems/trending
-GET    /search?query=...
-GET    /search/semantic?query=...
+GET    /search?query=...                 # intent-aware search
+GET    /search/hybrid?query=...          # semantic + keyword + tag scoring
+GET    /search/semantic?query=...        # semantic-style retrieval endpoint
 POST   /interest
 DELETE /interest/{problem_id}
 GET    /squads
@@ -107,7 +113,7 @@ WS     /ws/squad/{squad_id}
 FastAPI docs are available at:
 
 ```text
-<your-render-backend-url>/docs
+https://solvestack-final.onrender.com/docs
 ```
 
 ## Deployment Notes
@@ -171,7 +177,7 @@ npm run dev
 ## Tradeoffs
 
 - The hosted deployment uses a lightweight backend dependency set so Render deploys faster and avoids heavy ML packages.
-- Search falls back to dependable keyword-style retrieval when embedding dependencies are unavailable.
+- Semantic search is exposed through backend endpoints; the hosted demo keeps a dependable keyword/hybrid fallback when embedding dependencies are unavailable.
 - The frontend keeps demo fallback mode enabled so recruiters can still explore the UI if the free backend instance is sleeping.
 - Some scraper integrations depend on external APIs and rate limits, so seeded demo data is the reliable review path.
 - WebSocket chat is implemented for squads, but a production chat system would need stronger moderation, retention, and scaling controls.
