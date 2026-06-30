@@ -46,8 +46,8 @@ This repo includes `render.yaml`, so Render can create:
 5. After the backend deploys, open:
 
    ```text
-   https://your-render-service.onrender.com/
-   https://your-render-service.onrender.com/docs
+   https://solvestack-final.onrender.com/
+   https://solvestack-final.onrender.com/docs
    ```
 
 6. If you did not set `SEED_DEMO_DATA=true`, seed demo data in the backend shell:
@@ -61,8 +61,8 @@ This repo includes `render.yaml`, so Render can create:
    In GitHub Actions or frontend environment:
 
    ```text
-   VITE_API_URL=https://your-render-service.onrender.com
-   VITE_WS_URL=
+   VITE_API_URL=https://solvestack-final.onrender.com
+   VITE_WS_URL=wss://solvestack-final.onrender.com
    VITE_DEMO_MODE=fallback
    ```
 

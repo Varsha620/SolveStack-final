@@ -42,8 +42,8 @@ jobs:
         run: npm run build
         env:
           VITE_DEMO_MODE: fallback
-          VITE_API_URL: https://example.invalid
-          VITE_WS_URL: ""
+          VITE_API_URL: https://solvestack-final.onrender.com
+          VITE_WS_URL: wss://solvestack-final.onrender.com
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

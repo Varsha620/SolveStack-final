@@ -3,7 +3,7 @@
 Full-stack problem discovery and collaboration platform for turning real developer pain points into portfolio-worthy project ideas.
 
 [Live Frontend](https://varsha620.github.io/SolveStack-final/)<br>
-Backend API: `replace-with-your-render-url`<br>
+Backend API: [https://solvestack-final.onrender.com](https://solvestack-final.onrender.com/)<br>
 [Deployment Guide](DEPLOYMENT.md)<br>
 [Backend README](SolveStack-main/README.md)  
 [Frontend README](solvestack-frontend/README.md)
@@ -137,11 +137,11 @@ SEED_DEMO_DATA=true
 DATABASE_URL=<render-postgres-internal-url>
 ```
 
-After the backend URL is final, update the frontend deploy environment with:
+The frontend deploy workflow is configured with:
 
 ```text
-VITE_API_URL=https://your-render-service.onrender.com
-VITE_WS_URL=wss://your-render-service.onrender.com
+VITE_API_URL=https://solvestack-final.onrender.com
+VITE_WS_URL=wss://solvestack-final.onrender.com
 VITE_DEMO_MODE=fallback
 ```
 
