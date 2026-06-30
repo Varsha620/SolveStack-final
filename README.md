@@ -17,7 +17,7 @@ Email: demo@solvestack.dev
 Password: Demo@12345
 ```
 
-The demo seed creates curated problems, pre-selected interests, one active squad, and a starter squad chat message so the product does not look empty during review.
+The demo seed creates 30+ curated problems, pre-selected interests, active squads, and starter squad chat messages so the product feels alive during review.
 
 ## Try These 3 Workflows
 

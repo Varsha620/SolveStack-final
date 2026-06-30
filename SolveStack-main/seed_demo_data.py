@@ -88,6 +88,243 @@ DEMO_PROBLEMS = [
 ]
 
 
+ADDITIONAL_DEMO_BLUEPRINTS = [
+    {
+        "title": "Multi-tenant feature flag audit trail for B2B SaaS",
+        "description": "Product teams need to know who changed a rollout, which customers were affected, and how to roll back safely when a flag causes a production issue.",
+        "source": "github/demo",
+        "suggested_tech": "FastAPI, PostgreSQL, React, Audit Logs",
+        "tags": ["feature-flags", "audit-logs", "saas", "postgresql"],
+    },
+    {
+        "title": "Clinic no-show prediction and waitlist optimizer",
+        "description": "Small clinics lose capacity when patients miss appointments. Build a dashboard that predicts risky slots, suggests reminders, and fills openings from a waitlist.",
+        "source": "hackernews/demo",
+        "suggested_tech": "Python, FastAPI, PostgreSQL, React",
+        "tags": ["healthcare", "prediction", "scheduling", "dashboard"],
+    },
+    {
+        "title": "Personal finance anomaly detector for subscription creep",
+        "description": "Users often miss duplicate charges, silent subscription increases, and unusual merchant patterns. Detect anomalies and explain them in plain language.",
+        "source": "reddit/demo",
+        "suggested_tech": "Plaid API, Python, PostgreSQL, React",
+        "tags": ["fintech", "anomaly-detection", "subscriptions", "alerts"],
+    },
+    {
+        "title": "Teacher workload planner with rubric-aware grading queues",
+        "description": "Teachers need to balance grading, feedback quality, and deadline pressure. Prioritize submissions by risk, rubric complexity, and student support needs.",
+        "source": "stackoverflow/demo",
+        "suggested_tech": "React, FastAPI, PostgreSQL, Queueing",
+        "tags": ["edtech", "workflow", "prioritization", "rubrics"],
+    },
+    {
+        "title": "Pull request risk scorer for small engineering teams",
+        "description": "Reviewers need a fast way to spot risky PRs. Score changes using touched modules, churn, tests, ownership, and historical incident links.",
+        "source": "github/demo",
+        "suggested_tech": "GitHub API, Python, GraphQL, React",
+        "tags": ["developer-tools", "code-review", "risk-scoring", "github"],
+    },
+    {
+        "title": "Customer support duplicate ticket clusterer",
+        "description": "Support teams waste time triaging repeated reports of the same bug. Cluster incoming tickets, surface likely root causes, and link related incidents.",
+        "source": "hackernews/demo",
+        "suggested_tech": "Embeddings, FastAPI, PostgreSQL, React",
+        "tags": ["support", "clustering", "embeddings", "incident-management"],
+    },
+    {
+        "title": "Warehouse cold-chain breach monitor",
+        "description": "Food and pharma teams need to track temperature excursions, affected batches, compliance notes, and escalation timelines from sensor feeds.",
+        "source": "reddit/demo",
+        "suggested_tech": "IoT, FastAPI, Timeseries, React",
+        "tags": ["logistics", "iot", "compliance", "monitoring"],
+    },
+    {
+        "title": "Open-source maintainer burnout signal dashboard",
+        "description": "Popular repositories accumulate issues faster than maintainers can respond. Detect burnout signals from response times, stale labels, and contributor load.",
+        "source": "github/demo",
+        "suggested_tech": "GitHub API, PostgreSQL, React, Analytics",
+        "tags": ["open-source", "analytics", "maintainer-tools", "github"],
+    },
+    {
+        "title": "Secure document expiry tracker for HR teams",
+        "description": "HR teams need reminders for contracts, visas, certifications, and policy acknowledgements with role-based access and audit history.",
+        "source": "stackoverflow/demo",
+        "suggested_tech": "FastAPI, PostgreSQL, RBAC, React",
+        "tags": ["hrtech", "rbac", "documents", "compliance"],
+    },
+    {
+        "title": "AI prompt regression test suite for product teams",
+        "description": "Teams changing prompts need to know whether outputs got worse. Store test cases, compare model responses, and flag quality regressions before release.",
+        "source": "hackernews/demo",
+        "suggested_tech": "Python, FastAPI, LLM Eval, React",
+        "tags": ["ai", "evaluation", "testing", "prompt-engineering"],
+    },
+    {
+        "title": "Municipal issue routing system for citizen reports",
+        "description": "City staff receive duplicate pothole, lighting, and sanitation reports. Route issues by location, category, urgency, and department capacity.",
+        "source": "reddit/demo",
+        "suggested_tech": "GIS, FastAPI, PostgreSQL, React",
+        "tags": ["civic-tech", "gis", "routing", "operations"],
+    },
+    {
+        "title": "Release notes generator from commits and tickets",
+        "description": "Teams struggle to turn commits and Jira tickets into useful customer-facing release notes. Generate grouped, editable notes with risk labels.",
+        "source": "github/demo",
+        "suggested_tech": "GitHub API, NLP, FastAPI, React",
+        "tags": ["release-management", "nlp", "developer-tools", "jira"],
+    },
+    {
+        "title": "Restaurant prep demand forecaster",
+        "description": "Small restaurants need to estimate prep quantities from reservations, weather, events, and historical sales to reduce waste and stockouts.",
+        "source": "hackernews/demo",
+        "suggested_tech": "Python, Forecasting, PostgreSQL, Dashboard",
+        "tags": ["foodtech", "forecasting", "inventory", "dashboard"],
+    },
+    {
+        "title": "Security checklist evidence collector for startups",
+        "description": "Startups preparing for vendor reviews need to gather policies, screenshots, access reviews, and evidence into a repeatable security packet.",
+        "source": "stackoverflow/demo",
+        "suggested_tech": "FastAPI, S3, PostgreSQL, React",
+        "tags": ["security", "compliance", "evidence", "startups"],
+    },
+    {
+        "title": "Student project scope validator",
+        "description": "Students often choose projects that are too broad or too shallow. Score scope, suggest MVP boundaries, and produce milestone plans.",
+        "source": "reddit/demo",
+        "suggested_tech": "React, FastAPI, Rules Engine, PostgreSQL",
+        "tags": ["education", "planning", "portfolio", "project-scoping"],
+    },
+    {
+        "title": "Cloud cost spike explainer for side projects",
+        "description": "Developers get surprised by cloud bills. Ingest usage exports, detect spikes, map them to deploys, and explain the likely cause.",
+        "source": "github/demo",
+        "suggested_tech": "AWS Cost Explorer, Python, React, PostgreSQL",
+        "tags": ["cloud-cost", "observability", "aws", "finops"],
+    },
+    {
+        "title": "Internal tool access review assistant",
+        "description": "Managers need quarterly access reviews that are not spreadsheet chaos. Show who has access, why, last activity, and suggested removals.",
+        "source": "hackernews/demo",
+        "suggested_tech": "FastAPI, PostgreSQL, RBAC, React",
+        "tags": ["security", "access-review", "rbac", "workflow"],
+    },
+    {
+        "title": "Remote team decision log with context recovery",
+        "description": "Remote teams forget why decisions were made. Capture decisions, alternatives, owners, source links, and revisit dates in a searchable timeline.",
+        "source": "reddit/demo",
+        "suggested_tech": "PostgreSQL, Search, React, FastAPI",
+        "tags": ["knowledge-management", "remote-work", "search", "timeline"],
+    },
+    {
+        "title": "API contract drift detector for microservices",
+        "description": "Frontend and backend teams break each other when APIs drift. Compare OpenAPI snapshots, identify breaking changes, and notify owners.",
+        "source": "stackoverflow/demo",
+        "suggested_tech": "OpenAPI, FastAPI, PostgreSQL, CI",
+        "tags": ["api", "microservices", "contract-testing", "ci"],
+    },
+    {
+        "title": "Community moderation queue prioritizer",
+        "description": "Moderators need to triage reports by harm, repeat offenders, confidence, and freshness while keeping an audit trail of actions.",
+        "source": "reddit/demo",
+        "suggested_tech": "React, FastAPI, PostgreSQL, Moderation",
+        "tags": ["trust-safety", "moderation", "prioritization", "audit"],
+    },
+    {
+        "title": "Medication refill coordination tracker",
+        "description": "Patients, pharmacies, and clinics lose time coordinating refills. Track refill status, blockers, messages, and escalation deadlines.",
+        "source": "hackernews/demo",
+        "suggested_tech": "FastAPI, PostgreSQL, React, Notifications",
+        "tags": ["healthcare", "workflow", "notifications", "status-tracking"],
+    },
+    {
+        "title": "Test flakiness investigator for CI pipelines",
+        "description": "Teams ignore flaky tests until confidence collapses. Track flaky runs, environment patterns, recent code owners, and quarantine decisions.",
+        "source": "github/demo",
+        "suggested_tech": "CI API, Python, PostgreSQL, React",
+        "tags": ["ci", "testing", "developer-tools", "analytics"],
+    },
+    {
+        "title": "Vendor risk questionnaire auto-fill workspace",
+        "description": "Security and sales teams repeatedly answer similar questionnaires. Reuse approved answers, flag stale evidence, and track review status.",
+        "source": "stackoverflow/demo",
+        "suggested_tech": "FastAPI, PostgreSQL, Search, React",
+        "tags": ["vendor-risk", "security", "workflow", "search"],
+    },
+    {
+        "title": "Local service outage map for small ISPs",
+        "description": "Small ISPs need to combine customer reports, router telemetry, and field technician updates into a real-time outage map.",
+        "source": "reddit/demo",
+        "suggested_tech": "Maps, WebSockets, FastAPI, PostgreSQL",
+        "tags": ["networking", "maps", "realtime", "operations"],
+    },
+    {
+        "title": "Knowledge base freshness monitor",
+        "description": "Support docs silently rot as products change. Detect stale articles from ticket deflections, product changes, and unanswered searches.",
+        "source": "hackernews/demo",
+        "suggested_tech": "Search Analytics, FastAPI, PostgreSQL, React",
+        "tags": ["documentation", "analytics", "support", "knowledge-base"],
+    },
+    {
+        "title": "Interview prep tracker tied to target job descriptions",
+        "description": "Candidates need to map practice sessions to actual role requirements. Track gaps, spaced repetition, and evidence-ready project stories.",
+        "source": "reddit/demo",
+        "suggested_tech": "React, FastAPI, PostgreSQL, NLP",
+        "tags": ["career-tools", "learning", "nlp", "planning"],
+    },
+    {
+        "title": "Privacy request workflow for small apps",
+        "description": "Small teams need a GDPR-style workflow for export/delete requests, identity checks, deadlines, and audit logs without buying enterprise tools.",
+        "source": "stackoverflow/demo",
+        "suggested_tech": "FastAPI, PostgreSQL, Background Jobs, React",
+        "tags": ["privacy", "gdpr", "workflow", "audit-logs"],
+    },
+    {
+        "title": "Fleet maintenance early warning board",
+        "description": "Operations teams need to predict vehicle issues using service history, driver reports, mileage, and parts availability.",
+        "source": "hackernews/demo",
+        "suggested_tech": "Python, PostgreSQL, React, Forecasting",
+        "tags": ["fleet", "maintenance", "forecasting", "operations"],
+    },
+    {
+        "title": "Meeting action item accountability tracker",
+        "description": "Action items disappear after meetings. Extract tasks, assign owners, track blockers, and link outcomes back to decisions.",
+        "source": "reddit/demo",
+        "suggested_tech": "NLP, FastAPI, PostgreSQL, React",
+        "tags": ["productivity", "nlp", "task-tracking", "teams"],
+    },
+    {
+        "title": "Dependency upgrade blast-radius planner",
+        "description": "Teams delay dependency upgrades because impact is unclear. Map packages to services, tests, owners, vulnerabilities, and rollout steps.",
+        "source": "github/demo",
+        "suggested_tech": "Dependency Graph, Python, PostgreSQL, React",
+        "tags": ["dependencies", "security", "developer-tools", "planning"],
+    },
+]
+
+
+for offset, item in enumerate(ADDITIONAL_DEMO_BLUEPRINTS, start=1):
+    source_key = item["source"].split("/")[0]
+    slug = (
+        item["title"].lower()
+        .replace("-", " ")
+        .replace("/", " ")
+        .replace(" ", "_")
+    )
+    score = 72 + ((offset * 7) % 22)
+    DEMO_PROBLEMS.append({
+        **item,
+        "source_id": f"demo_{slug[:54]}",
+        "reference_link": f"https://demo.solvestack.local/problems/{slug.replace('_', '-')[:72]}",
+        "engineering_impact_score": score,
+        "technical_depth_score": round(0.58 + ((offset * 5) % 33) / 100, 2),
+        "industry_impact_score": round(0.6 + ((offset * 7) % 31) / 100, 2),
+        "cognitive_complexity_score": round(0.55 + ((offset * 11) % 35) / 100, 2),
+        "signal_quality_score": round(0.62 + ((offset * 13) % 29) / 100, 2),
+        "upvotes": 18 + ((offset * 9) % 55),
+        "comment_count": 4 + ((offset * 5) % 22),
+    })
+
+
 def seed_demo_data() -> None:
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
@@ -164,37 +401,67 @@ def seed_demo_data() -> None:
                 problem.interested_users.append(demo_user)
 
         if seeded_problems:
-            primary_problem = seeded_problems[0]
-            squad = db.query(CollaborationGroup).filter(
-                CollaborationGroup.problem_id == primary_problem.ps_id,
-                CollaborationGroup.leader_id == demo_user.id,
-                CollaborationGroup.name == "Incident Memory Builders"
-            ).first()
-            if not squad:
-                squad = CollaborationGroup(
-                    problem_id=primary_problem.ps_id,
-                    name="Incident Memory Builders",
-                    description="A demo squad exploring how small engineering teams can preserve incident knowledge and turn repeated fixes into searchable playbooks.",
-                    leader_id=demo_user.id,
-                    is_active=True,
-                )
-                squad.members.append(demo_user)
-                db.add(squad)
-                db.flush()
-            elif demo_user not in squad.members:
-                squad.members.append(demo_user)
+            squad_templates = [
+                (
+                    0,
+                    "Incident Memory Builders",
+                    "Designing the schema, search flow, and incident timeline UX for engineering teams.",
+                    "Welcome to the recruiter demo. This seeded squad shows the collaboration flow without depending on live scraper data.",
+                ),
+                (
+                    1,
+                    "Latency Watch",
+                    "Building FastAPI middleware, slow-query tracking, and release-to-release regression charts.",
+                    "First milestone: capture p95 latency by endpoint and link spikes to deploy timestamps.",
+                ),
+                (
+                    4,
+                    "PR Risk Lab",
+                    "Exploring GitHub signals, ownership metadata, and test coverage to flag risky pull requests.",
+                    "The interesting part is not the score alone; it is explaining why a review deserves attention.",
+                ),
+                (
+                    9,
+                    "Prompt QA Bench",
+                    "Creating repeatable prompt regression tests for product teams shipping AI features.",
+                    "We are collecting golden examples and comparing output quality across prompt versions.",
+                ),
+            ]
 
-            existing_message = db.query(SquadMessage).filter(
-                SquadMessage.squad_id == squad.id,
-                SquadMessage.sender_id == demo_user.id,
-                SquadMessage.content.like("Welcome to the recruiter demo%")
-            ).first()
-            if not existing_message:
-                db.add(SquadMessage(
-                    squad_id=squad.id,
-                    sender_id=demo_user.id,
-                    content="Welcome to the recruiter demo. This seeded squad shows the collaboration flow without depending on live scraper data.",
-                ))
+            for problem_index, name, description, message in squad_templates:
+                if problem_index >= len(seeded_problems):
+                    continue
+
+                squad = db.query(CollaborationGroup).filter(
+                    CollaborationGroup.problem_id == seeded_problems[problem_index].ps_id,
+                    CollaborationGroup.leader_id == demo_user.id,
+                    CollaborationGroup.name == name,
+                ).first()
+                if not squad:
+                    squad = CollaborationGroup(
+                        problem_id=seeded_problems[problem_index].ps_id,
+                        name=name,
+                        description=description,
+                        leader_id=demo_user.id,
+                        is_active=True,
+                    )
+                    squad.members.append(demo_user)
+                    db.add(squad)
+                    db.flush()
+                elif demo_user not in squad.members:
+                    squad.members.append(demo_user)
+
+                existing_message = db.query(SquadMessage).filter(
+                    SquadMessage.squad_id == squad.id,
+                    SquadMessage.sender_id == demo_user.id,
+                    SquadMessage.content == message,
+                ).first()
+                if not existing_message:
+                    db.add(SquadMessage(
+                        squad_id=squad.id,
+                        sender_id=demo_user.id,
+                        content=message,
+                    ))
 
         db.commit()
         total = db.query(Problem).count()
