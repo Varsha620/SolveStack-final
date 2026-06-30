@@ -7,7 +7,17 @@ generation so the demo path remains dependable.
 from datetime import date, datetime, timedelta
 
 from database import SessionLocal, engine
-from models import Base, Problem
+from auth import get_password_hash
+from models import Base, CollaborationGroup, Problem, SquadMessage, User
+
+
+DEMO_USER = {
+    "email": "demo@solvestack.dev",
+    "username": "demo_builder",
+    "password": "Demo@12345",
+    "skills": ["React", "FastAPI", "PostgreSQL", "Search"],
+    "interests": ["portfolio projects", "developer tools", "collaboration"],
+}
 
 
 DEMO_PROBLEMS = [
@@ -84,9 +94,30 @@ def seed_demo_data() -> None:
     inserted = 0
 
     try:
+        demo_user = db.query(User).filter(User.email == DEMO_USER["email"]).first()
+        if not demo_user:
+            demo_user = User(
+                email=DEMO_USER["email"],
+                username=DEMO_USER["username"],
+                hashed_password=get_password_hash(DEMO_USER["password"]),
+                skills=DEMO_USER["skills"],
+                interests=DEMO_USER["interests"],
+                activity_score=68,
+            )
+            db.add(demo_user)
+            db.flush()
+        else:
+            demo_user.username = DEMO_USER["username"]
+            demo_user.hashed_password = get_password_hash(DEMO_USER["password"])
+            demo_user.skills = DEMO_USER["skills"]
+            demo_user.interests = DEMO_USER["interests"]
+            demo_user.activity_score = max(demo_user.activity_score or 0, 68)
+
+        seeded_problems = []
         for index, item in enumerate(DEMO_PROBLEMS):
             exists = db.query(Problem).filter(Problem.reference_link == item["reference_link"]).first()
             if exists:
+                seeded_problems.append(exists)
                 continue
 
             description = item["description"]
@@ -123,11 +154,54 @@ def seed_demo_data() -> None:
                 engineering_impact_score=item["engineering_impact_score"],
             )
             db.add(problem)
+            seeded_problems.append(problem)
             inserted += 1
+
+        db.flush()
+
+        for problem in seeded_problems[:3]:
+            if demo_user not in problem.interested_users:
+                problem.interested_users.append(demo_user)
+
+        if seeded_problems:
+            primary_problem = seeded_problems[0]
+            squad = db.query(CollaborationGroup).filter(
+                CollaborationGroup.problem_id == primary_problem.ps_id,
+                CollaborationGroup.leader_id == demo_user.id,
+                CollaborationGroup.name == "Incident Memory Builders"
+            ).first()
+            if not squad:
+                squad = CollaborationGroup(
+                    problem_id=primary_problem.ps_id,
+                    name="Incident Memory Builders",
+                    description="A demo squad exploring how small engineering teams can preserve incident knowledge and turn repeated fixes into searchable playbooks.",
+                    leader_id=demo_user.id,
+                    is_active=True,
+                )
+                squad.members.append(demo_user)
+                db.add(squad)
+                db.flush()
+            elif demo_user not in squad.members:
+                squad.members.append(demo_user)
+
+            existing_message = db.query(SquadMessage).filter(
+                SquadMessage.squad_id == squad.id,
+                SquadMessage.sender_id == demo_user.id,
+                SquadMessage.content.like("Welcome to the recruiter demo%")
+            ).first()
+            if not existing_message:
+                db.add(SquadMessage(
+                    squad_id=squad.id,
+                    sender_id=demo_user.id,
+                    content="Welcome to the recruiter demo. This seeded squad shows the collaboration flow without depending on live scraper data.",
+                ))
 
         db.commit()
         total = db.query(Problem).count()
-        print(f"Seeded {inserted} demo problems. Total problems: {total}")
+        print(
+            f"Seeded {inserted} demo problems. Total problems: {total}. "
+            f"Demo login: {DEMO_USER['email']} / {DEMO_USER['password']}"
+        )
     except Exception:
         db.rollback()
         raise

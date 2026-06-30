@@ -17,6 +17,8 @@ const Auth: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const demoEmail = 'demo@solvestack.dev';
+  const demoPassword = 'Demo@12345';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +42,23 @@ const Auth: React.FC = () => {
       }
     } catch (err: any) {
       setError(err.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setError(null);
+    setLoading(true);
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+
+    try {
+      const response = await apiService.login(demoEmail, demoPassword);
+      login(response.access_token, { email: demoEmail, username: 'demo_builder' });
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Demo login failed. Please confirm the backend demo seed ran.');
     } finally {
       setLoading(false);
     }
@@ -71,6 +90,15 @@ const Auth: React.FC = () => {
               {error}
             </div>
           )}
+          <button
+            type="button"
+            onClick={handleDemoLogin}
+            disabled={loading}
+            className="mb-6 w-full rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-left transition-all hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span className="block text-xs font-black uppercase tracking-widest text-cyan-300">Recruiter demo</span>
+            <span className="mt-1 block text-sm text-white/70">Sign in as demo_builder with seeded problems, interests, and a squad.</span>
+          </button>
           <form onSubmit={handleSubmit} className="space-y-5">
             {!isLogin && (
               <div>
@@ -107,8 +135,11 @@ const Auth: React.FC = () => {
                 required
               />
             </div>
-            <button className="w-full py-4 bg-white text-black font-bold rounded-xl hover:bg-white/90 transition-all flex items-center justify-center gap-2 group">
-              {isLogin ? 'Sign In' : 'Get Started'}
+            <button
+              disabled={loading}
+              className="w-full py-4 bg-white text-black font-bold rounded-xl hover:bg-white/90 transition-all flex items-center justify-center gap-2 group disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? 'Working...' : isLogin ? 'Sign In' : 'Get Started'}
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           </form>

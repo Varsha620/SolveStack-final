@@ -1,59 +1,151 @@
 # SolveStack
 
-Full-stack problem discovery and collaboration platform for finding real-world technical project ideas from developer communities.
+Full-stack problem discovery and collaboration platform for turning real developer pain points into portfolio-worthy project ideas.
 
-[Live frontend demo](https://varsha620.github.io/SolveStack-final/)  
+[Live Frontend](https://varsha620.github.io/SolveStack-final/)<br>
+Backend API: `replace-with-your-render-url`<br>
+[Deployment Guide](DEPLOYMENT.md)<br>
 [Backend README](SolveStack-main/README.md)  
-[Frontend README](solvestack-frontend/README.md)  
-[Deployment Guide](DEPLOYMENT.md)
+[Frontend README](solvestack-frontend/README.md)
 
-## What This Project Shows
+## Demo Account
 
-SolveStack is a production-minded portfolio project built around:
-
-- FastAPI REST API design.
-- JWT authentication.
-- SQLAlchemy data modeling.
-- SQLite local development and PostgreSQL-ready deployment configuration.
-- Multi-source problem scraping.
-- Search, semantic-style retrieval, and engineering-impact scoring.
-- React/Vite frontend with Tailwind CSS.
-- Squad collaboration and WebSocket chat.
-- Deployment hardening, demo fallback data, and honest documentation.
-
-The live GitHub Pages demo uses frontend demo fallback data, so the interface stays reviewable even when live scraper credentials or backend hosting are not connected.
-
-## Repository Structure
+Use this account for a recruiter-friendly walkthrough after the backend is deployed with `SEED_DEMO_DATA=true`.
 
 ```text
-SolveStack-final/
-+-- SolveStack-main/        # FastAPI backend, models, scrapers, migrations, backend docs
-+-- solvestack-frontend/    # React/Vite frontend, Tailwind UI, demo mode
-+-- .github/workflows/      # GitHub Pages deployment workflow
-+-- README.md               # Repository overview
+Email: demo@solvestack.dev
+Password: Demo@12345
 ```
 
-GitHub shows this root `README.md` on the repository homepage. The backend and frontend folders also include their own setup notes.
+The demo seed creates curated problems, pre-selected interests, one active squad, and a starter squad chat message so the product does not look empty during review.
 
-## Current Status
+## Try These 3 Workflows
 
-Implemented:
+1. Discover project ideas
+   Open the dashboard, browse seeded problems, compare impact scores, and inspect a problem detail page.
 
-- Backend API with authentication, problem discovery, search, interests, squads, and WebSocket chat.
-- Frontend dashboard, problem detail, trending, interests, profile, squad list, and squad chat views.
-- Tailwind/PostCSS build setup.
-- In-app toast and confirmation modal system.
-- Demo fallback data for reliable portfolio viewing.
-- GitHub Pages frontend deployment.
-- Render/Railway-ready backend deployment files.
+2. Search by intent
+   Try searches such as `FastAPI observability`, `resume projects`, or `offline sync` to see the problem retrieval flow.
 
-Not yet fully deployed:
+3. Join the collaboration loop
+   Sign in with the demo account, open Squads, inspect the seeded squad, and view the squad chat flow.
 
-- Hosted backend service.
-- Hosted PostgreSQL database.
-- Production monitoring and CI checks.
+## Problem Statement
 
-## Quick Start
+Junior developers often build generic clone projects because it is hard to find real, scoped, technically meaningful problems. SolveStack collects problem signals from developer communities, normalizes them, ranks them by engineering value, and helps users form squads around ideas worth building.
+
+## Features
+
+- JWT authentication with protected user flows.
+- Problem shelf with filtering, search, and engineering impact scoring.
+- Multi-source scraper architecture for GitHub, Reddit, Hacker News, and Stack Overflow style sources.
+- Demo-safe seeded data for reliable portfolio reviews.
+- Interest tracking so users can save problems they want to build.
+- Squad creation, join requests, membership management, and WebSocket chat.
+- React/Vite frontend with Tailwind/PostCSS styling.
+- FastAPI backend with SQLAlchemy models and PostgreSQL-ready deployment.
+- Render-ready backend config and GitHub Pages frontend deployment.
+
+## Screenshots
+
+| Area | Placeholder |
+| --- | --- |
+| Landing / Dashboard | Add `docs/screenshots/dashboard.png` |
+| Problem Detail | Add `docs/screenshots/problem-detail.png` |
+| Squads / Chat | Add `docs/screenshots/squad-chat.png` |
+
+Suggested screenshot flow: dashboard with seeded cards, one detailed problem page, and the demo squad chat page.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    User["User / Recruiter"] --> Frontend["React + Vite Frontend\nGitHub Pages"]
+    Frontend --> API["FastAPI Backend\nRender Web Service"]
+    API --> Auth["JWT Auth"]
+    API --> DB["PostgreSQL\nRender Postgres"]
+    API --> Search["Search + Scoring Services"]
+    API --> Scrapers["Community Scrapers"]
+    API --> WS["WebSocket Squad Chat"]
+    Scrapers --> Sources["GitHub / Reddit / HN / Stack Overflow"]
+```
+
+## Tech Stack
+
+| Layer | Tools |
+| --- | --- |
+| Frontend | React, TypeScript, Vite, Tailwind CSS, lucide-react |
+| Backend | FastAPI, SQLAlchemy, Pydantic, Uvicorn |
+| Auth | JWT, passlib password hashing |
+| Database | SQLite for local dev, PostgreSQL for hosted deployment |
+| Search / Ranking | Keyword fallback search, scoring services, optional embedding path |
+| Deployment | GitHub Pages, Render Web Service, Render Postgres |
+
+## API Overview
+
+Core endpoints:
+
+```text
+POST   /register
+POST   /login
+GET    /me
+GET    /problems
+GET    /problems/{problem_id}
+GET    /problems/trending
+GET    /search?query=...
+GET    /search/semantic?query=...
+POST   /interest
+DELETE /interest/{problem_id}
+GET    /squads
+POST   /squads
+GET    /squads/{squad_id}
+POST   /squads/{squad_id}/join
+GET    /squads/{squad_id}/messages
+WS     /ws/squad/{squad_id}
+```
+
+FastAPI docs are available at:
+
+```text
+<your-render-backend-url>/docs
+```
+
+## Deployment Notes
+
+Frontend:
+
+```text
+https://varsha620.github.io/SolveStack-final/
+```
+
+Backend:
+
+- Deploy as a Render Web Service.
+- Root directory: `SolveStack-main`
+- Build command: `pip install -r requirements-deploy.txt`
+- Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+- Use Render Postgres and set `DATABASE_URL` to the internal database URL.
+
+Required backend environment variables:
+
+```text
+ENVIRONMENT=production
+PYTHON_VERSION=3.11.9
+SECRET_KEY=<generated-secret>
+FRONTEND_ORIGINS=https://varsha620.github.io
+SEED_DEMO_DATA=true
+DATABASE_URL=<render-postgres-internal-url>
+```
+
+After the backend URL is final, update the frontend deploy environment with:
+
+```text
+VITE_API_URL=https://your-render-service.onrender.com
+VITE_WS_URL=wss://your-render-service.onrender.com
+VITE_DEMO_MODE=fallback
+```
+
+## Local Development
 
 Backend:
 
@@ -63,6 +155,7 @@ python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
 copy .env.example .env
+python seed_demo_data.py
 uvicorn main:app --reload
 ```
 
@@ -75,25 +168,25 @@ copy .env.example .env
 npm run dev
 ```
 
-Optional backend demo seed:
+## Tradeoffs
 
-```bash
-cd SolveStack-main
-python seed_demo_data.py
-```
+- The hosted deployment uses a lightweight backend dependency set so Render deploys faster and avoids heavy ML packages.
+- Search falls back to dependable keyword-style retrieval when embedding dependencies are unavailable.
+- The frontend keeps demo fallback mode enabled so recruiters can still explore the UI if the free backend instance is sleeping.
+- Some scraper integrations depend on external APIs and rate limits, so seeded demo data is the reliable review path.
+- WebSocket chat is implemented for squads, but a production chat system would need stronger moderation, retention, and scaling controls.
 
-## Deployment
-
-The frontend is deployed to GitHub Pages:
+## Repository Structure
 
 ```text
-https://varsha620.github.io/SolveStack-final/
+SolveStack-final/
++-- SolveStack-main/        # FastAPI backend, models, scrapers, seeds, backend docs
++-- solvestack-frontend/    # React/Vite frontend, Tailwind UI, demo mode
++-- .github/workflows/      # GitHub Pages deployment workflow
++-- DEPLOYMENT.md           # Hosting guide
++-- README.md               # Recruiter-facing overview
 ```
 
-The backend is prepared for deployment to a service such as Render, Railway, or Fly.io with a hosted PostgreSQL database.
+## Portfolio Positioning
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for backend hosting steps.
-
-## Portfolio Note
-
-This project is intentionally documented as production-minded rather than fully production-hosted. That keeps the claims aligned with the current implementation while still showing backend architecture, deployment readiness, and product polish.
+SolveStack is strongest as a full-stack portfolio project showing practical backend design, product thinking, deployment readiness, and an honest demo strategy. It is not presented as a large-scale production SaaS; it is a polished, reviewable project built around a real developer problem.
