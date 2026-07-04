@@ -1,52 +1,57 @@
 # SolveStack
 
-Full-stack problem discovery and collaboration platform for turning real developer pain points into portfolio-worthy project ideas.
+Full-stack problem discovery and collaboration platform that turns real developer pain points into portfolio-worthy project ideas.
 
-[Live Now](https://varsha620.github.io/SolveStack-final/) (Can use demo credentials provided for viewing the demo version)<br></br>
-Backend API: [https://solvestack-final.onrender.com](https://solvestack-final.onrender.com/)<br>
-[Deployment Guide](DEPLOYMENT.md)<br>
+[Live Demo](https://varsha620.github.io/SolveStack-final/) - use the demo credentials below for a guided walkthrough.  
+[Backend API](https://solvestack-final.onrender.com/)  
+[FastAPI Docs](https://solvestack-final.onrender.com/docs)  
+[Deployment Guide](DEPLOYMENT.md)  
 [Backend README](SolveStack-main/README.md)  
 [Frontend README](solvestack-frontend/README.md)
 
+## Overview
+
+Junior developers often build generic clone projects because it is hard to find real, scoped, technically meaningful problems. SolveStack addresses that by collecting problem signals from developer communities, cleaning and normalizing them, ranking them by engineering value, and helping users form squads around ideas worth building.
+
+The project combines backend API design, data ingestion, search, ranking, authentication, frontend integration, and real-time collaboration into one portfolio-ready product.
+
 ## Demo Account
 
-Use this account for a recruiter-friendly walkthrough after the backend is deployed with `SEED_DEMO_DATA=true`.
+Use this account for a recruiter-friendly walkthrough when the backend is seeded with demo data:
 
 ```text
 Email: demo@solvestack.dev
 Password: Demo@12345
 ```
 
-The demo seed creates 30+ curated problems, pre-selected interests, active squads, and starter squad chat messages so the product feels alive during review.
+The demo seed creates 30+ curated problems, selected interests, active squads, and starter squad chat messages so the product feels alive during review.
 
-## Try These 3 Workflows
+The frontend also includes fallback demo data so the UI remains reviewable if the free backend instance is cold, empty, or temporarily unavailable.
 
-1. Discover project ideas
-   Open the dashboard, browse seeded problems, compare impact scores, and inspect a problem detail page.
+## Try These Workflows
 
-2. Search by intent
-   Try searches such as `FastAPI observability`, `resume projects`, or `offline sync` to see the semantic-style retrieval and ranking flow.
+1. Discover project ideas  
+   Open the dashboard, browse the problem shelf, compare impact scores, and inspect a problem detail page.
 
-3. Join the collaboration loop
-   Sign in with the demo account, open Squads, inspect the seeded squad, and view the squad chat flow.
+2. Search by intent  
+   Try searches such as `FastAPI observability`, `resume projects`, or `offline sync` to see the intent-aware search and ranking flow.
 
-## Problem Statement
-
-Junior developers often build generic clone projects because it is hard to find real, scoped, technically meaningful problems. SolveStack collects problem signals from developer communities, normalizes them, ranks them by engineering value, and helps users form squads around ideas worth building.
+3. Join the collaboration loop  
+   Sign in with the demo account, open Squads, inspect an active squad, and view the squad chat flow.
 
 ## Features
 
 - JWT authentication with protected user flows.
-- Problem shelf with filtering, semantic-style search, and engineering impact scoring.
-- Intent-aware retrieval endpoints for hybrid and semantic search workflows.
-- Engineering Impact Scoring engine that separates project value from implementation difficulty.
+- Problem shelf with filters, search, impact scoring, and problem details.
+- Intent-aware search with hybrid, semantic-style, and keyword fallback behavior.
+- Engineering Impact Scoring engine that separates portfolio value from implementation difficulty.
 - Multi-source scraper architecture for GitHub, Reddit, Hacker News, and Stack Overflow style sources.
-- Demo-safe seeded data for reliable portfolio reviews.
+- Data cleaning layer for normalization, tag cleanup, technicality checks, and deduplication support.
 - Interest tracking so users can save problems they want to build.
 - Squad creation, join requests, membership management, and WebSocket chat.
-- React/Vite frontend with Tailwind/PostCSS styling.
+- React/Vite frontend with TypeScript and Tailwind CSS.
 - FastAPI backend with SQLAlchemy models and PostgreSQL-ready deployment.
-- Render-ready backend config and GitHub Pages frontend deployment.
+- Render backend configuration and GitHub Pages frontend deployment.
 
 ## Screenshots
 
@@ -69,8 +74,8 @@ flowchart LR
     User["User / Recruiter"] --> Frontend["React + Vite Frontend\nGitHub Pages"]
     Frontend --> API["FastAPI Backend\nRender Web Service"]
     API --> Auth["JWT Auth"]
-    API --> DB["PostgreSQL\nRender Postgres"]
-    API --> Search["Hybrid + Semantic Search\nScoring Services"]
+    API --> DB["SQLite Local / PostgreSQL Hosted"]
+    API --> Search["Search + Ranking Services"]
     API --> Scrapers["Community Scrapers"]
     API --> WS["WebSocket Squad Chat"]
     Scrapers --> Sources["GitHub / Reddit / HN / Stack Overflow"]
@@ -80,25 +85,38 @@ flowchart LR
 
 | Layer | Tools |
 | --- | --- |
-| Frontend | React, TypeScript, Vite, Tailwind CSS, lucide-react |
-| Backend | FastAPI, SQLAlchemy, Pydantic, Uvicorn |
-| Auth | JWT, passlib password hashing |
-| Database | SQLite for local dev, PostgreSQL for hosted deployment |
-| Search / Ranking | Hybrid search, semantic-style retrieval, keyword fallback, engineering impact scoring |
+| Frontend | React, TypeScript, Vite, Tailwind CSS, lucide-react, Recharts |
+| Backend | Python, FastAPI, SQLAlchemy, Pydantic, Uvicorn |
+| Auth | JWT, Passlib password hashing |
+| Database | SQLite for local development, PostgreSQL for hosted deployment |
+| Search / Ranking | Query processing, hybrid search, semantic-style retrieval, keyword fallback, Engineering Impact Scoring |
+| Realtime | FastAPI WebSockets for squad chat |
 | Deployment | GitHub Pages, Render Web Service, Render Postgres |
+
+## Core Data Flow
+
+```text
+External sources
+  -> scraper modules
+  -> cleaning and normalization layer
+  -> difficulty and quality feature extraction
+  -> Engineering Impact Scoring
+  -> database storage
+  -> search / dashboard / squads
+```
 
 ## Scoring Engine
 
-SolveStack uses an Engineering Impact Scoring engine to rank ideas by portfolio and real-world value, not just by popularity. The score is calculated from four signals:
+SolveStack uses an Engineering Impact Scoring engine to rank ideas by portfolio and real-world engineering value, not just popularity.
 
-| Signal | What it captures |
+| Signal | What It Captures |
 | --- | --- |
 | Technical depth | Architecture, scaling, performance, data modeling, async work, and system-design signals |
 | Industry impact | Production relevance, security, cost, compliance, reliability, and customer value |
 | Cognitive complexity | Tradeoffs, ambiguity, design decisions, and problem-solving depth |
 | Signal quality | Specificity, technical density, and whether the problem has enough detail to build from |
 
-The app also tracks **difficulty** separately as Beginner, Intermediate, or Advanced. That distinction matters: a project can be beginner-friendly but still valuable, or advanced because it requires deeper architecture and operational design.
+Difficulty is tracked separately as Beginner, Intermediate, or Advanced. That distinction matters because a project can be beginner-friendly but still valuable, or advanced because it requires deeper architecture and operational design.
 
 ## API Overview
 
@@ -111,9 +129,9 @@ GET    /me
 GET    /problems
 GET    /problems/{problem_id}
 GET    /problems/trending
-GET    /search?query=...                 # intent-aware search
-GET    /search/hybrid?query=...          # semantic + keyword + tag scoring
-GET    /search/semantic?query=...        # semantic-style retrieval endpoint
+GET    /search?query=...
+GET    /search/hybrid?query=...
+GET    /search/semantic?query=...
 POST   /interest
 DELETE /interest/{problem_id}
 GET    /squads
@@ -124,10 +142,33 @@ GET    /squads/{squad_id}/messages
 WS     /ws/squad/{squad_id}
 ```
 
-FastAPI docs are available at:
+FastAPI documentation:
 
 ```text
 https://solvestack-final.onrender.com/docs
+```
+
+## Local Development
+
+Backend:
+
+```bash
+cd SolveStack-main
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env
+python seed_demo_data.py
+uvicorn main:app --reload
+```
+
+Frontend:
+
+```bash
+cd solvestack-frontend
+npm install
+copy .env.example .env
+npm run dev
 ```
 
 ## Deployment Notes
@@ -157,7 +198,7 @@ SEED_DEMO_DATA=true
 DATABASE_URL=<render-postgres-internal-url>
 ```
 
-The frontend deploy workflow is configured with:
+Frontend deployment variables:
 
 ```text
 VITE_API_URL=https://solvestack-final.onrender.com
@@ -165,36 +206,13 @@ VITE_WS_URL=wss://solvestack-final.onrender.com
 VITE_DEMO_MODE=fallback
 ```
 
-## Local Development
-
-Backend:
-
-```bash
-cd SolveStack-main
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-copy .env.example .env
-python seed_demo_data.py
-uvicorn main:app --reload
-```
-
-Frontend:
-
-```bash
-cd solvestack-frontend
-npm install
-copy .env.example .env
-npm run dev
-```
-
 ## Tradeoffs
 
-- The hosted deployment uses a lightweight backend dependency set so Render deploys faster and avoids heavy ML packages.
-- Semantic search is exposed through backend endpoints; the hosted demo keeps a dependable keyword/hybrid fallback when embedding dependencies are unavailable.
-- The frontend keeps demo fallback mode enabled so recruiters can still explore the UI if the free backend instance is sleeping.
-- Some scraper integrations depend on external APIs and rate limits, so seeded demo data is the reliable review path.
-- WebSocket chat is implemented for squads, but a production chat system would need stronger moderation, retention, and scaling controls.
+- The hosted backend uses a lightweight dependency set so free-tier deployment avoids heavy ML packages.
+- Semantic-style search endpoints remain available, with dependable keyword/hybrid fallback when embedding dependencies are unavailable.
+- Frontend fallback mode keeps the demo reviewable if the backend is sleeping or empty.
+- Live scraper integrations depend on external APIs, credentials, quotas, and rate limits, so seeded demo data is the reliable review path.
+- WebSocket chat is implemented for squads, but a production chat system would need stronger moderation, retention, Redis or broker-backed scaling, and observability.
 
 ## Repository Structure
 
@@ -202,6 +220,7 @@ npm run dev
 SolveStack-final/
 +-- SolveStack-main/        # FastAPI backend, models, scrapers, seeds, backend docs
 +-- solvestack-frontend/    # React/Vite frontend, Tailwind UI, demo mode
++-- docs/screenshots/       # Product screenshots
 +-- .github/workflows/      # GitHub Pages deployment workflow
 +-- DEPLOYMENT.md           # Hosting guide
 +-- README.md               # Recruiter-facing overview
@@ -209,4 +228,4 @@ SolveStack-final/
 
 ## Portfolio Positioning
 
-SolveStack is strongest as a full-stack portfolio project showing practical backend design, product thinking, deployment readiness, and an honest demo strategy. It is not presented as a large-scale production SaaS; it is a polished, reviewable project built around a real developer problem.
+SolveStack is strongest as a full-stack portfolio project showing practical backend design, product thinking, deployment readiness, search/ranking logic, and an honest demo strategy. It is not presented as a mature large-scale SaaS; it is a polished, reviewable project built around a real developer problem.
