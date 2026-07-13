@@ -15,12 +15,12 @@ const Landing: React.FC = () => {
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-900/20 rounded-full blur-[120px]" />
       </div>
 
-      <header className="relative z-10 container mx-auto px-6 py-10 flex justify-between items-center">
+      <header className="container relative z-10 mx-auto flex items-center justify-between gap-3 px-4 py-6 sm:px-6 sm:py-10">
         <Link to="/" className="flex items-center gap-3 group">
           <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center group-hover:rotate-6 transition-transform shadow-[0_0_20px_rgba(255,255,255,0.1)]">
             <Terminal className="text-black w-6 h-6" />
           </div>
-          <span className="text-2xl font-black tracking-tightest uppercase italic">SolveStack</span>
+          <span className="hidden text-xl font-black uppercase italic sm:inline sm:text-2xl">SolveStack</span>
         </Link>
         
         <div className="hidden md:flex items-center gap-10 text-[11px] font-bold uppercase tracking-[0.2em] text-white/40">
@@ -29,24 +29,24 @@ const Landing: React.FC = () => {
           <a href="#" className="hover:text-white transition-colors">Sourcing</a>
         </div>
 
-        <div className="flex items-center gap-6">
-          <Link to="/login" className="text-xs font-bold uppercase tracking-widest text-white/40 hover:text-white transition-colors">Login</Link>
-          <Link to="/register" className="px-6 py-2.5 bg-white text-black rounded-full text-xs font-black uppercase tracking-widest hover:bg-cyan-400 hover:scale-105 transition-all shadow-xl">
-            Join the Squad
+        <div className="flex items-center gap-2 sm:gap-6">
+          <Link to="/login" className="hidden text-xs font-bold uppercase tracking-widest text-white/40 transition-colors hover:text-white min-[400px]:block">Login</Link>
+          <Link to="/register" className="rounded-full bg-white px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-black shadow-xl transition-all hover:scale-105 hover:bg-cyan-400 sm:px-6 sm:text-xs sm:tracking-widest">
+            <span className="sm:hidden">Join</span><span className="hidden sm:inline">Join the Squad</span>
           </Link>
         </div>
       </header>
 
       <main className="relative z-10">
         {/* Hero Section */}
-        <section className="container mx-auto px-6 pt-24 pb-32 text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-16">
+        <section className="container mx-auto flex flex-col items-center justify-between gap-12 px-4 pb-20 pt-14 text-center sm:px-6 sm:pb-28 sm:pt-20 md:text-left lg:flex-row lg:gap-16 lg:pb-32 lg:pt-24">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 mb-8 backdrop-blur-sm">
               <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
               <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-white/60">Where real engineers find real work</span>
             </div>
             
-            <h1 className="text-7xl md:text-[10rem] font-black leading-[0.85] mb-10 tracking-tighter italic">
+            <h1 className="mb-8 text-[clamp(3rem,14vw,8rem)] font-black leading-[0.85] tracking-tighter italic sm:mb-10 lg:text-[8rem] xl:text-[10rem]">
               BUILD <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-white/80 to-white/20">WHAT'S NEEDED.</span>
             </h1>
@@ -114,7 +114,7 @@ const Landing: React.FC = () => {
         </div>
 
         {/* Feature Grid: Sourcing Methodology */}
-        <section className="container mx-auto px-6 py-32">
+        <section className="container mx-auto px-4 py-20 sm:px-6 sm:py-32">
           <div className="max-w-2xl mb-20">
             <h2 className="text-4xl md:text-5xl font-black mb-6 tracking-tight italic">THE ANATOMY OF A PROBLEM</h2>
             <p className="text-white/40 text-lg leading-relaxed">
@@ -148,7 +148,7 @@ const Landing: React.FC = () => {
         </section>
 
         {/* Classic Footer Section */}
-        <section className="container mx-auto px-6 py-32 border-t border-white/5 flex flex-col md:flex-row justify-between gap-20">
+        <section className="container mx-auto flex flex-col justify-between gap-14 border-t border-white/5 px-4 py-20 sm:px-6 sm:py-32 md:flex-row md:gap-20">
            <div className="max-w-md">
              <h3 className="text-3xl font-black mb-8 italic">READY TO BUILD?</h3>
              <p className="text-white/30 text-sm leading-relaxed mb-8">
@@ -160,7 +160,7 @@ const Landing: React.FC = () => {
              </Link>
            </div>
            
-           <div className="grid grid-cols-2 md:grid-cols-3 gap-12 text-xs font-bold uppercase tracking-widest text-white/20">
+           <div className="grid grid-cols-2 gap-8 text-xs font-bold uppercase tracking-widest text-white/20 sm:gap-12 md:grid-cols-3">
               <div className="space-y-4">
                 <span className="text-white/40">Platform</span>
                 <a href="#" className="block hover:text-white transition-colors">The Shelf</a>

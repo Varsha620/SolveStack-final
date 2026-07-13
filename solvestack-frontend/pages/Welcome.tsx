@@ -11,7 +11,7 @@ const Welcome: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center relative overflow-hidden selection:bg-cyan-500/30">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-black px-4 py-16 text-white selection:bg-cyan-500/30">
       {/* Dynamic Background Elements */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-[120px] animate-pulse" />
@@ -20,7 +20,7 @@ const Welcome: React.FC = () => {
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)]" />
       </div>
 
-      <div className={`relative z-10 transition-all duration-1000 transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'} text-center px-6`}>
+      <div className={`relative z-10 w-full max-w-5xl transition-all duration-1000 transform ${mounted ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'} text-center sm:px-6`}>
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 mb-8 backdrop-blur-sm">
           <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">V1.0 Early Access</span>
@@ -32,7 +32,7 @@ const Welcome: React.FC = () => {
            </div>
         </div>
 
-        <h1 className="text-7xl md:text-9xl font-black tracking-tighter mb-4 leading-none italic">
+        <h1 className="mb-4 text-[clamp(2.8rem,15vw,8rem)] font-black leading-none tracking-tighter italic">
           SOLVE<span className="text-transparent bg-clip-text bg-gradient-to-b from-white to-white/20">STACK</span>
         </h1>
 
@@ -50,7 +50,7 @@ const Welcome: React.FC = () => {
             <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-purple-400 opacity-0 group-hover:opacity-10 transition-opacity" />
           </Link>
           
-          <div className="flex items-center gap-8 text-[11px] font-bold uppercase tracking-widest text-white/20">
+          <div className="flex flex-col items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-white/20 sm:flex-row sm:gap-8 sm:text-[11px]">
             <span className="flex items-center gap-2"><div className="w-1 h-1 bg-purple-500 rounded-full" /> StackOverflow Sync</span>
             <span className="flex items-center gap-2"><div className="w-1 h-1 bg-yellow-500 rounded-full" /> HN Discovery</span>
           </div>
@@ -58,7 +58,7 @@ const Welcome: React.FC = () => {
       </div>
 
       {/* Aesthetic Footer Detail */}
-      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 opacity-30">
+      <div className="absolute bottom-4 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-4 opacity-30 sm:flex lg:bottom-12">
         <div className="w-px h-12 bg-gradient-to-b from-white to-transparent" />
         <span className="text-[10px] font-mono uppercase tracking-[0.3em]">Scroll to learn more</span>
       </div>

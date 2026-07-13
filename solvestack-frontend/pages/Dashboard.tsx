@@ -168,34 +168,34 @@ const Dashboard: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-black text-white">
+    <div className="flex min-h-screen flex-col bg-black text-white lg:flex-row">
       {/* Sidebar - Desktop */}
-      <aside className="w-full md:w-64 border-r border-white/5 p-6 flex flex-col gap-8">
-        <Link to="/" className="flex items-center gap-2 mb-4 group">
+      <aside className="flex w-full flex-col gap-4 border-b border-white/5 p-4 sm:p-6 lg:w-64 lg:flex-shrink-0 lg:gap-8 lg:border-b-0 lg:border-r">
+        <Link to="/" className="group flex items-center gap-2 lg:mb-4">
           <div className="w-8 h-8 bg-white rounded-md flex items-center justify-center group-hover:scale-105 transition-transform">
             <span className="text-black font-bold">S</span>
           </div>
           <span className="text-xl font-bold hover:text-white/80 transition-colors">SolveStack</span>
         </Link>
 
-        <nav className="flex flex-col gap-2">
-          <Link to="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/10 text-white font-medium transition-all">
+        <nav className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
+          <Link to="/dashboard" className="flex shrink-0 items-center gap-3 rounded-xl bg-white/10 px-4 py-3 font-medium text-white transition-all">
             <LayoutGrid className="w-5 h-5" />
             Problem Shelf
           </Link>
-          <Link to="/trending" className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-all">
+          <Link to="/trending" className="flex shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-white/40 transition-all hover:bg-white/5 hover:text-white">
             <TrendingUp className="w-5 h-5" />
             Trending
           </Link>
-          <Link to="/squads" className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-all">
+          <Link to="/squads" className="flex shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-white/40 transition-all hover:bg-white/5 hover:text-white">
             <Layers className="w-5 h-5" />
             Your Squads
           </Link>
-          <Link to="/interests" className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-all">
+          <Link to="/interests" className="flex shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-white/40 transition-all hover:bg-white/5 hover:text-white">
             <Sparkles className="w-5 h-5" />
             Interests
           </Link>
-          <Link to="/profile" className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-all">
+          <Link to="/profile" className="flex shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-white/40 transition-all hover:bg-white/5 hover:text-white">
             <Terminal className="w-5 h-5" />
             Profile
           </Link>
@@ -211,9 +211,9 @@ const Dashboard: React.FC = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden bg-[#050505]">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col bg-[#050505] lg:h-screen lg:overflow-hidden">
         {/* Header / Toolbar Area */}
-        <header className="p-6 border-b border-white/5 bg-black/40 backdrop-blur-xl sticky top-0 z-20">
+        <header className="sticky top-0 z-20 border-b border-white/5 bg-black/80 p-3 backdrop-blur-xl sm:p-6">
           <div className="max-w-[1600px] mx-auto flex flex-col xl:flex-row xl:items-center justify-between gap-6">
 
             {/* Search Section */}
@@ -252,9 +252,9 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Filter Section */}
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex min-w-0 flex-wrap items-center gap-3 sm:gap-4">
               {/* Platform Filter */}
-              <div className="flex items-center p-1 bg-white/[0.03] border border-white/10 rounded-2xl">
+              <div className="flex max-w-full items-center overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03] p-1">
                 {['All', 'GitHub', 'Hacker News', 'Stack Overflow'].map((platform) => {
                   const Icon = platform === 'GitHub' ? Terminal :
                     platform === 'Hacker News' ? Globe :
@@ -277,7 +277,7 @@ const Dashboard: React.FC = () => {
               </div>
 
               {/* Difficulty Filter */}
-              <div className="flex items-center p-1 bg-white/[0.03] border border-white/10 rounded-2xl">
+              <div className="flex max-w-full items-center overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03] p-1">
                 {['All', Difficulty.BEGINNER, Difficulty.INTERMEDIATE, Difficulty.ADVANCED].map((diff) => (
                   <button
                     key={diff}
@@ -285,7 +285,7 @@ const Dashboard: React.FC = () => {
                       setSelectedDifficulty(diff);
                       setAiFilteredIds(null);
                     }}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${selectedDifficulty === diff ? 'bg-white text-black' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+                    className={`shrink-0 px-3 py-2 sm:px-4 rounded-xl text-xs font-bold transition-all ${selectedDifficulty === diff ? 'bg-white text-black' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
                   >
                     {diff}
                   </button>
@@ -307,9 +307,9 @@ const Dashboard: React.FC = () => {
         </header>
 
         {/* Scrollable Area */}
-        <div className="flex-1 overflow-y-auto p-6 scroll-smooth">
+        <div className="flex-1 p-3 scroll-smooth sm:p-6 lg:overflow-y-auto">
           {aiFilteredIds !== null && (
-            <div className="mb-6 flex items-center gap-3">
+            <div className="mb-6 flex flex-wrap items-center gap-3">
               <div className="px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-full flex items-center gap-2">
                 <Sparkles className="w-3 h-3 text-cyan-400" />
                 <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400">AI Context Filter Active</span>
@@ -345,7 +345,7 @@ const Dashboard: React.FC = () => {
           )}
 
           {!loading && !isAiFiltering && filteredProblems.length === 0 && (
-            <div className="text-center py-20 bg-[#090909] border border-white/5 border-dashed rounded-3xl">
+            <div className="rounded-3xl border border-dashed border-white/5 bg-[#090909] px-4 py-14 text-center sm:py-20">
               <div className="text-white/10 mb-4 flex justify-center">
                 <Search className="w-16 h-16" />
               </div>

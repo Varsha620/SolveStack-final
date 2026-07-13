@@ -66,13 +66,15 @@ export const apiService = {
       }).then(handleResponse);
 
       const problems = data.map(mapItemToProblem);
-      if (DEMO_MODE && skip === 0 && problems.length === 0) {
+      // Keep the public shelf useful while the hosted API is cold, offline, or
+      // connected to a freshly-created database with no rows yet.
+      if (skip === 0 && problems.length === 0) {
         return demoProblems.slice(0, limit);
       }
       return problems;
     } catch (error) {
       console.error("Failed to fetch problems:", error);
-      return DEMO_MODE && skip === 0 ? demoProblems.slice(0, limit) : [];
+      return skip === 0 ? demoProblems.slice(0, limit) : [];
     }
   },
 
@@ -85,7 +87,7 @@ export const apiService = {
       return mapItemToProblem(item);
     } catch (error) {
       console.error(`Failed to fetch problem ${id}:`, error);
-      return DEMO_MODE ? demoProblems.find(problem => problem.id === id) : undefined;
+      return demoProblems.find(problem => problem.id === id);
     }
   },
 
@@ -296,7 +298,7 @@ export const apiService = {
         .then(handleResponse);
 
       const results = (data.results || []).map(mapItemToProblem);
-      if (DEMO_MODE && results.length === 0) {
+      if (results.length === 0) {
         const normalized = query.toLowerCase();
         return demoProblems.filter(problem =>
           problem.title.toLowerCase().includes(normalized) ||
@@ -307,7 +309,6 @@ export const apiService = {
       return results;
     } catch (error) {
       console.error("Semantic search failed:", error);
-      if (!DEMO_MODE) return [];
       const normalized = query.toLowerCase();
       return demoProblems.filter(problem =>
         problem.title.toLowerCase().includes(normalized) ||
@@ -325,12 +326,12 @@ export const apiService = {
       }).then(handleResponse);
 
       const problems = data.map(mapItemToProblem);
-      return DEMO_MODE && problems.length === 0
+      return problems.length === 0
         ? [...demoProblems].sort((a, b) => b.interestedCount - a.interestedCount)
         : problems;
     } catch (error) {
       console.error("Failed to fetch trending problems:", error);
-      return DEMO_MODE ? [...demoProblems].sort((a, b) => b.interestedCount - a.interestedCount) : [];
+      return [...demoProblems].sort((a, b) => b.interestedCount - a.interestedCount);
     }
   },
 

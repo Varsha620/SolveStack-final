@@ -105,8 +105,8 @@ const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
   const displayDifficulty = problem.difficulty;
 
   return (
-    <div className="group relative bg-[#090909] border border-white/5 rounded-xl p-5 hover:border-white/20 transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)]">
-      <div className="flex justify-between items-start mb-4">
+    <div className="group relative min-w-0 rounded-xl border border-white/5 bg-[#090909] p-4 transition-all duration-300 hover:border-white/20 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] sm:p-5">
+      <div className="mb-4 flex flex-col items-start justify-between gap-3 sm:flex-row">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border w-fit ${DIFFICULTY_COLORS[displayDifficulty]}`}>
@@ -129,14 +129,14 @@ const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
             </button>
           )}
         </div>
-        <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+        <div className="flex max-w-full flex-wrap items-center gap-2 opacity-60 transition-opacity group-hover:opacity-100 sm:justify-end">
           <button
             onClick={() => handleShowIntelligence('explain')}
             className="flex items-center gap-1.5 px-2 py-1 bg-white/5 hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/30 rounded-lg transition-all"
             title="Show Intelligence Breakdown"
           >
             <Sparkles className="w-3 h-3 text-cyan-400" />
-            <span className="text-[10px] font-bold text-white/40 group-hover:text-cyan-400">Why this rank?</span>
+            <span className="hidden text-[10px] font-bold text-white/40 group-hover:text-cyan-400 sm:inline">Why this rank?</span>
           </button>
           {PLATFORM_ICONS[problem.source]}
           <span className="text-[11px] font-medium">{problem.source}</span>
