@@ -31,13 +31,15 @@ import {
 import { GoogleGenAI, Type } from "@google/genai";
 import { useUI } from '../contexts/UIContext';
 
+const LIMIT = 40;
+
 const Dashboard: React.FC = () => {
-  const [problems, setProblems] = useState<Problem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const initialProblems = apiService.getShelfPreview(LIMIT);
+  const [problems, setProblems] = useState<Problem[]>(initialProblems);
+  const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [offset, setOffset] = useState(0);
-  const LIMIT = 40;
-  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(LIMIT);
+  const [hasMore, setHasMore] = useState(initialProblems.length === LIMIT);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
@@ -52,34 +54,21 @@ const Dashboard: React.FC = () => {
   const { toast } = useUI();
 
   useEffect(() => {
-    const fetch = async () => {
-      setLoading(true);
+    let active = true;
+
+    const refreshShelf = async () => {
       const data = await apiService.getProblems(0, LIMIT);
+      if (!active || data.length === 0) return;
+
       setProblems(data);
       setOffset(LIMIT);
       setHasMore(data.length === LIMIT);
-
-      if (data.length === 0) {
-        // Shelf is empty, auto-trigger the scrapers
-        setIsScraping(true);
-        try {
-          const result = await apiService.scrapeProblems();
-          if (result.newProblems && result.newProblems.length > 0) {
-            const newProblemsWithBadge = result.newProblems.map(p => ({ ...p, isNew: true }));
-            setProblems(newProblemsWithBadge);
-            setHasMore(newProblemsWithBadge.length >= LIMIT);
-          }
-        } catch (error) {
-          console.error("Auto-scraping failed:", error);
-          toast('Demo shelf loaded', { message: 'Live scraping was unavailable, so curated sample problems are shown.', variant: 'info' });
-        } finally {
-          setIsScraping(false);
-        }
-      }
-
-      setLoading(false);
     };
-    fetch();
+
+    refreshShelf();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleLoadMore = async () => {
@@ -113,12 +102,14 @@ const Dashboard: React.FC = () => {
   const clearAiFilter = async () => {
     setAiFilteredIds(null);
     setSearchQuery('');
-    setLoading(true);
+    const preview = apiService.getShelfPreview(LIMIT);
+    setProblems(preview);
+    setHasMore(preview.length === LIMIT);
+    setLoading(false);
     const data = await apiService.getProblems(0, LIMIT);
     setProblems(data);
     setOffset(LIMIT);
     setHasMore(data.length === LIMIT);
-    setLoading(false);
   };
 
   const handleRunScrapers = async () => {

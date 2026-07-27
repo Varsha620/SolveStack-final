@@ -26,7 +26,7 @@ Password: Demo@12345
 
 The demo seed creates 30+ curated problems, selected interests, active squads, and starter squad chat messages so the product feels alive during review.
 
-The frontend also includes fallback demo data so the UI remains reviewable if the free backend instance is cold, empty, or temporarily unavailable.
+The frontend renders cached or curated shelf data immediately, then refreshes from the live API in the background. A bounded request timeout keeps the UI responsive when the free backend instance is cold, empty, or temporarily unavailable.
 
 ## Try These Workflows
 
@@ -42,7 +42,7 @@ The frontend also includes fallback demo data so the UI remains reviewable if th
 ## Features
 
 - JWT authentication with protected user flows.
-- Problem shelf with filters, search, impact scoring, and problem details.
+- Fast-loading problem shelf with instant cached/curated results, background API refresh, filters, search, impact scoring, and problem details.
 - Intent-aware search with hybrid, semantic-style, and keyword fallback behavior.
 - Engineering Impact Scoring engine that separates portfolio value from implementation difficulty.
 - Multi-source scraper architecture for GitHub, Reddit, Hacker News, and Stack Overflow style sources.
@@ -210,7 +210,7 @@ VITE_DEMO_MODE=fallback
 
 - The hosted backend uses a lightweight dependency set so free-tier deployment avoids heavy ML packages.
 - Semantic-style search endpoints remain available, with dependable keyword/hybrid fallback when embedding dependencies are unavailable.
-- Frontend fallback mode keeps the demo reviewable if the backend is sleeping or empty.
+- The problem shelf uses a stale-while-refresh approach: cached or curated problems render immediately, live data refreshes in the background, and the request stops waiting after six seconds.
 - Live scraper integrations depend on external APIs, credentials, quotas, and rate limits, so seeded demo data is the reliable review path.
 - WebSocket chat is implemented for squads, but a production chat system would need stronger moderation, retention, Redis or broker-backed scaling, and observability.
 

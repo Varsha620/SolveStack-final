@@ -3,6 +3,41 @@ import { Problem, Difficulty, Source, SolutionType, User } from '../types';
 import { API_BASE_URL, DEMO_MODE } from './config';
 import { demoProblems, demoSquads } from './demoData';
 
+const SHELF_CACHE_KEY = 'solvestack:shelf-cache';
+const SHELF_REQUEST_TIMEOUT_MS = 6000;
+
+const getCachedShelf = (limit: number): Problem[] => {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(SHELF_CACHE_KEY) || '[]');
+    if (Array.isArray(cached) && cached.length > 0) {
+      return cached.slice(0, limit);
+    }
+  } catch {
+    // Storage can be unavailable in strict privacy modes.
+  }
+
+  return demoProblems.slice(0, limit);
+};
+
+const cacheShelf = (problems: Problem[]) => {
+  try {
+    sessionStorage.setItem(SHELF_CACHE_KEY, JSON.stringify(problems));
+  } catch {
+    // Browsing modes that disable storage should not block the shelf.
+  }
+};
+
+const fetchWithTimeout = async (url: string, init: RequestInit = {}) => {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), SHELF_REQUEST_TIMEOUT_MS);
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+};
+
 // Helper to handle response errors
 const handleResponse = async (response: Response) => {
   if (!response.ok) {
@@ -58,10 +93,12 @@ const mapItemToProblem = (item: any): Problem => ({
 });
 
 export const apiService = {
+  getShelfPreview: (limit: number = 40): Problem[] => getCachedShelf(limit),
+
   getProblems: async (skip: number = 0, limit: number = 100): Promise<Problem[]> => {
     const token = localStorage.getItem('token');
     try {
-      const data = await fetch(`${API_BASE_URL}/problems?skip=${skip}&limit=${limit}`, {
+      const data = await fetchWithTimeout(`${API_BASE_URL}/problems?skip=${skip}&limit=${limit}`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       }).then(handleResponse);
 
@@ -69,12 +106,15 @@ export const apiService = {
       // Keep the public shelf useful while the hosted API is cold, offline, or
       // connected to a freshly-created database with no rows yet.
       if (skip === 0 && problems.length === 0) {
-        return demoProblems.slice(0, limit);
+        return getCachedShelf(limit);
+      }
+      if (skip === 0) {
+        cacheShelf(problems);
       }
       return problems;
     } catch (error) {
       console.error("Failed to fetch problems:", error);
-      return skip === 0 ? demoProblems.slice(0, limit) : [];
+      return skip === 0 ? getCachedShelf(limit) : [];
     }
   },
 

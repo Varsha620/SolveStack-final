@@ -14,7 +14,7 @@ Implemented:
 - Environment-based API and WebSocket configuration.
 - Tailwind/PostCSS build pipeline.
 - In-app toast and confirmation system.
-- Demo fallback data when live backend/scraper results are unavailable.
+- Instant cached or curated shelf data with a background live refresh and bounded API timeout.
 
 Not currently implemented:
 - Payment/subscription UI.
